@@ -1,0 +1,866 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Skyship Logistics Glassmorphism - Deep Blue, Dimmer Lemon Green & White */
+:root {
+  --glass-bg-primary: linear-gradient(135deg, #001f3f 0%, #003366 25%, #004080 50%, #003366 75%, #001f3f 100%);
+  --glass-primary: rgba(255, 255, 255, 0.15);
+  --glass-secondary: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 31, 63, 0.5);
+  --glass-glow: 0 0 20px rgba(157, 196, 0, 0.4);
+  
+  /* Skyship Logistics Color Palette - Dimmer Lemon Green, Deep Blue, White */
+  --skyship-lemon: #9DC400;
+  --skyship-lemon-light: #B8D940;
+  --skyship-lemon-dark: #7A9A00;
+  --skyship-lemon-glow: 0 0 20px rgba(157, 196, 0, 0.5);
+  --skyship-deep-blue: #001f3f;
+  --skyship-blue: #003366;
+  --skyship-white: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --glass-primary: rgba(0, 0, 0, 0.25);
+    --glass-secondary: rgba(0, 0, 0, 0.15);
+    --glass-border: rgba(255, 255, 255, 0.1);
+  }
+}
+
+body {
+  background: var(--glass-bg-primary);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', Arial, sans-serif;
+  min-height: 100vh;
+  backdrop-filter: blur(0px);
+}
+
+/* Glass Panels */
+.glass-panel {
+  background: var(--glass-primary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 24px;
+  box-shadow: var(--glass-shadow);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+}
+
+.glass-panel:hover {
+  background: var(--glass-secondary);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: var(--glass-glow), 0 20px 40px rgba(0,0,0,0.2);
+}
+
+.glass-panel:active {
+  transform: translateY(-2px) scale(1.01);
+}
+
+/* Glass Icons */
+.glass-icon {
+  background: var(--glass-secondary);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 12px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.glass-icon:hover {
+  background: var(--glass-primary);
+  transform: scale(1.05);
+  box-shadow: var(--glass-glow);
+}
+
+/* High Contrast Text */
+.text-glass {
+  color: white !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+/* Spacious Layout */
+main {
+  padding: 2rem 1rem;
+  gap: 2.5rem;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.container {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 480px) {
+  main {
+    padding: 1.5rem 1rem;
+    gap: 2rem;
+  }
+  
+  .glass-panel {
+    margin: 0 -1rem;
+    border-radius: 24px;
+    padding: 1.5rem;
+  }
+  
+  .glass-icon {
+    padding: 10px 14px;
+  }
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.3);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.5);
+}
+
+/* Skyship Logistics Mesh Gradient Background - Deep Blue with Dimmer Lemon Green Accents */
+.mesh-gradient {
+  background: 
+    radial-gradient(at 20% 30%, rgba(0, 51, 102, 0.6) 0px, transparent 50%),
+    radial-gradient(at 80% 20%, rgba(0, 31, 63, 0.7) 0px, transparent 50%),
+    radial-gradient(at 40% 70%, rgba(157, 196, 0, 0.15) 0px, transparent 50%),
+    radial-gradient(at 80% 80%, rgba(0, 64, 128, 0.5) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(0, 51, 102, 0.4) 0px, transparent 50%),
+    linear-gradient(135deg, #001f3f 0%, #003366 25%, #004080 50%, #003366 75%, #001f3f 100%);
+  min-height: 100vh;
+}
+
+/* 10px Frosted Glass Effect for Navigation */
+.glass-nav-10px {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* Full-bleed Background Slideshow Container */
+.bg-slideshow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.bg-slideshow-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 1.5s ease-in-out, transform 8s ease-out;
+  transform: scale(1.1);
+}
+
+.bg-slideshow-slide.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Hero Glass Panel - Enhanced */
+.hero-glass-panel {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 30px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Glass Input with Dimmer Lime Focus */
+.glass-input-lime:focus {
+  border-color: rgba(157, 196, 0, 0.6);
+  box-shadow: 0 0 0 3px rgba(157, 196, 0, 0.2);
+}
+
+/* Live Tracking Indicator */
+.live-tracking-indicator {
+  background: rgba(157, 196, 0, 0.15);
+  border: 1px solid rgba(157, 196, 0, 0.4);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 12px 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  animation: pulse-lime 2s ease-in-out infinite;
+}
+
+@keyframes pulse-lime {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(157, 196, 0, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(157, 196, 0, 0);
+  }
+}
+
+/* Live dot animation */
+.live-dot {
+  width: 8px;
+  height: 8px;
+  background: #9DC400;
+  border-radius: 50%;
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Glass Header */
+.glass-header {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Glass Button */
+.glass-button {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
+  transition: all 0.3s ease;
+  color: white;
+  font-weight: 600;
+}
+
+.glass-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Glass Input */
+.glass-input {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 15px;
+  color: white;
+  padding: 12px 20px;
+}
+
+.glass-input::placeholder {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.25);
+  outline: none;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+/* Vertical Sliding Animation */
+@keyframes slideVertical {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.slide-vertical {
+  animation: slideVertical 20s linear infinite;
+}
+
+/* Testimonial Slider Animation */
+@keyframes slideTestimonials {
+  0%, 20% {
+    transform: translateX(0);
+  }
+  25%, 45% {
+    transform: translateX(-100%);
+  }
+  50%, 70% {
+    transform: translateX(-200%);
+  }
+  75%, 95% {
+    transform: translateX(-300%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.testimonial-slider {
+  animation: slideTestimonials 20s ease-in-out infinite;
+}
+
+/* High contrast text for accessibility */
+.text-high-contrast {
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Service Card Hover Effect */
+.service-card {
+  transition: all 0.4s ease;
+}
+
+.service-card:hover {
+  transform: translateY(-10px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Timeline Styles */
+.timeline-step {
+  position: relative;
+}
+
+.timeline-step::before {
+  content: '';
+  position: absolute;
+  left: 24px;
+  top: 48px;
+  bottom: -24px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.timeline-step:last-child::before {
+  display: none;
+}
+
+/* Dark Glass Footer */
+.glass-footer {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Language Switcher */
+.language-switcher {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  padding: 4px 12px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.language-switcher:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Navigation Links */
+.nav-link {
+  color: white;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 20px;
+  transition: all 0.3s ease;
+}
+
+.nav-link:hover {
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+/* Hero Section Glass Panel */
+.hero-glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 30px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark Glass Panel */
+.glass-panel-dark {
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 30px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Glass Card - Individual cards with hover effects */
+.glass-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 30px;
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px rgba(255, 255, 255, 0.1);
+}
+
+/* Font Sans for headings - Inter or Montserrat */
+.font-sans {
+  font-family: 'Inter', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 600;
+}
+
+/* Staff Login Page - Glassmorphism Design */
+.staff-gradient {
+  background: 
+    radial-gradient(at 20% 30%, rgba(139, 92, 246, 0.4) 0px, transparent 50%),
+    radial-gradient(at 80% 20%, rgba(59, 130, 246, 0.4) 0px, transparent 50%),
+    radial-gradient(at 40% 80%, rgba(236, 72, 153, 0.3) 0px, transparent 50%),
+    radial-gradient(at 80% 80%, rgba(6, 182, 212, 0.3) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(99, 102, 241, 0.2) 0px, transparent 50%),
+    linear-gradient(to bottom right, #1e1b4b, #312e81, #1e3a8a);
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Staff Glass Panel - Heavy blur effect */
+.staff-glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 30px;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 100px rgba(139, 92, 246, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.staff-glass-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+}
+
+/* Staff Input Fields */
+.staff-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.1),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+  font-size: 16px;
+}
+
+.staff-input:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.staff-input:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Staff Login Button - Electric Blue with Glow */
+.staff-login-btn {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
+  border: 1px solid rgba(59, 130, 246, 0.5);
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    0 2px 4px -1px rgba(0, 0, 0, 0.1),
+    0 0 20px rgba(59, 130, 246, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.staff-login-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.staff-login-btn:hover::before {
+  left: 100%;
+}
+
+.staff-login-btn:hover {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 50%, #2563eb 100%);
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.3),
+    0 4px 6px -2px rgba(0, 0, 0, 0.1),
+    0 0 30px rgba(59, 130, 246, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.staff-login-btn:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.2),
+    0 0 20px rgba(59, 130, 246, 0.4);
+}
+
+/* Animation delays for background elements */
+.delay-1000 {
+  animation-delay: 1s;
+}
+
+/* Skyship Logistics Dimmer Lemon Green Button */
+.skyship-button {
+  background: linear-gradient(135deg, #9DC400 0%, #7A9A00 100%);
+  border: 1px solid rgba(157, 196, 0, 0.5);
+  border-radius: 15px;
+  color: #001f3f;
+  font-weight: 700;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(157, 196, 0, 0.3);
+}
+
+.skyship-button:hover {
+  background: linear-gradient(135deg, #B8D940 0%, #9DC400 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(157, 196, 0, 0.5);
+}
+
+/* Skyship Logistics Dimmer Lemon Green Logo - Larger Size */
+.skyship-logo {
+  background: linear-gradient(135deg, #9DC400 0%, #B8D940 50%, #7A9A00 100%);
+  box-shadow: 0 0 30px rgba(157, 196, 0, 0.5);
+  width: 56px;
+  height: 56px;
+  font-size: 28px;
+}
+
+/* Horizontal Timeline Styles */
+.timeline-horizontal {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
+  padding: 20px 0;
+}
+
+.timeline-horizontal::before {
+  content: '';
+  position: absolute;
+  top: 40px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.2);
+  z-index: 0;
+}
+
+.timeline-step-horizontal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  max-width: 200px;
+}
+
+.timeline-node {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  margin-bottom: 12px;
+}
+
+.timeline-node.active {
+  background: #9DC400;
+  color: #001f3f;
+  box-shadow: 0 0 20px rgba(157, 196, 0, 0.6);
+  transform: scale(1.2);
+}
+
+.timeline-node.completed {
+  background: #9DC400;
+  color: #001f3f;
+}
+
+.timeline-node.future {
+  background: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.timeline-content {
+  text-align: center;
+  padding: 0 10px;
+}
+
+.timeline-label {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.timeline-label.active {
+  color: #9DC400;
+}
+
+.timeline-label.completed {
+  color: white;
+}
+
+.timeline-label.future {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.timeline-date {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 4px;
+}
+
+.timeline-description {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.4;
+}
+
+/* Skyship Logistics Shipment Status Card */
+.shipment-status-card {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid #9DC400;
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 30px rgba(157, 196, 0, 0.1);
+}
+
+/* Dimmer Lemon Green Profile Ring */
+.profile-ring-lime {
+  border: 3px solid #9DC400;
+  box-shadow: 0 0 15px rgba(157, 196, 0, 0.4);
+}
+
+/* Skyship Logistics Footer Link */
+.skyship-footer-link {
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.3s ease;
+}
+
+.skyship-footer-link:hover {
+  color: #9DC400;
+}
+
+/* Company Identity Cards - Glassmorphism with Dimmer Lime Green Border */
+.company-identity-card {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid #9DC400;
+  border-radius: 24px;
+  padding: 2rem;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.company-identity-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(157, 196, 0, 0.6), transparent);
+}
+
+.company-identity-card:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: #B8D940;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3), 0 0 30px rgba(157, 196, 0, 0.2);
+  transform: translateY(-8px);
+}
+
+/* Glowing Dimmer Lime Green Icons */
+.identity-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(157, 196, 0, 0.2) 0%, rgba(157, 196, 0, 0.1) 100%);
+  border: 1px solid rgba(157, 196, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 0 20px rgba(157, 196, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.company-identity-card:hover .identity-icon {
+  box-shadow: 0 0 30px rgba(157, 196, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+  border-color: rgba(157, 196, 0, 0.6);
+}
+
+/* SVG Icon Styling */
+.identity-icon svg {
+  width: 32px;
+  height: 32px;
+  stroke: #9DC400;
+  stroke-width: 2;
+  fill: none;
+  filter: drop-shadow(0 0 8px rgba(157, 196, 0, 0.6));
+}
+
+/* Company Identity Heading */
+.identity-heading {
+  font-family: 'Inter', 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 1rem;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Company Identity Body Text */
+.identity-text {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+  line-height: 1.7;
+  font-weight: 400;
+}
+
+/* Core Values List Styling */
+.core-values-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.core-values-list li {
+  position: relative;
+  padding-left: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.core-values-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.6rem;
+  width: 6px;
+  height: 6px;
+  background: #9DC400;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(157, 196, 0, 0.6);
+}
+
+.core-values-list li strong {
+  color: #9DC400;
+  font-weight: 600;
+}
+
+/* Responsive Timeline */
+@media (max-width: 768px) {
+  .timeline-horizontal {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .timeline-horizontal::before {
+    display: none;
+  }
+  
+  .timeline-step-horizontal {
+    flex-direction: row;
+    align-items: flex-start;
+    width: 100%;
+    max-width: none;
+    margin-bottom: 20px;
+  }
+  
+  .timeline-node {
+    margin-bottom: 0;
+    margin-right: 16px;
+    flex-shrink: 0;
+  }
+  
+  .timeline-content {
+    text-align: left;
+  }
+}
