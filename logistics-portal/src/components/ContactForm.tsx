@@ -22,13 +22,10 @@ export default function ContactForm() {
     const formData = new FormData(form);
     
     const templateParams = {
-      user_name: formData.get('user_name'),
+      name: formData.get('user_name'),
       user_email: formData.get('user_email'),
-      from_name: formData.get('user_name'),
-      from_email: formData.get('user_email'),
-      subject: formData.get('subject'),
+      title: formData.get('subject'),
       message: formData.get('message'),
-      reply_to: formData.get('user_email'),
     };
 
     console.log('Sending email with params:', templateParams);
