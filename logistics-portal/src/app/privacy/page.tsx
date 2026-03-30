@@ -86,9 +86,11 @@ export default function PrivacyPage() {
               <p className="leading-relaxed">
                 For privacy-related questions or requests, contact our Data Protection Officer:
                 <br />
-                Email: privacy@skyshiplogistics.com
+                Email: privacy@skydexlogistics.com
                 <br />
-                Address: Skyship Logistics, 123 Logistics Way, Suite 100, New York, NY 10001
+                Phone: +44 7935 244329
+                <br />
+                Address: GOLDEN CROSS HOUSE, 456-458 STRAND
               </p>
             </section>
 

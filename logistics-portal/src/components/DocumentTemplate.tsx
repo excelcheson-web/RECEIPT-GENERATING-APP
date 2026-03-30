@@ -8,6 +8,36 @@ interface Props {
   onComplete?: (pdfUrl: string) => void
 }
 
+// Helper function to create low-opacity watermark image
+async function createWatermarkImage(imagePath: string, opacity: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'))
+        return
+      }
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      
+      // Draw image with opacity
+      ctx.globalAlpha = opacity
+      ctx.drawImage(img, 0, 0)
+      
+      // Convert to data URL
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = () => reject(new Error('Failed to load image'))
+    img.src = imagePath
+  })
+}
+
 // Number to Words Conversion Function
 function numberToWords(num: number): string {
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 
@@ -99,14 +129,27 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   const receiptNumber = data.receiptNumber || generateReceiptNumber()
   const issueDate = data.dateOfIssue || formatDate(new Date())
   
-  // Watermark
-  pdf.setTextColor(200, 200, 200)
-  pdf.setFontSize(50)
-  pdf.setFont('helvetica', 'bold')
-  pdf.text('GREENHILLS', pageWidth / 2, pageHeight / 2, {
-    align: 'center',
-    angle: 45
-  })
+  // Off-white background color
+  pdf.setFillColor(252, 252, 250)
+  pdf.rect(0, 0, pageWidth, pageHeight, 'F')
+  
+  // Diagonal Greenhills watermark with leaf/molecule icon (opacity: 0.02)
+  // Using the Gemini generated image as watermark with canvas-based opacity
+  try {
+    const watermarkPath = '/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png'
+    // Create low-opacity version of watermark (0.02 = 2% visibility)
+    const lowOpacityWatermark = await createWatermarkImage(watermarkPath, 0.02)
+    // Place large diagonal watermark across center (150x150mm for large imprint)
+    pdf.addImage(lowOpacityWatermark, 'PNG', pageWidth/2 - 75, pageHeight/2 - 75, 150, 150, '', 'FAST', 45)
+  } catch (error) {
+    // Fallback: diagonal text watermark with very light gray
+    pdf.setTextColor(240, 240, 240)
+    pdf.setFontSize(100)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text('GCI', pageWidth/2, pageHeight/2, { align: 'center', angle: 45 })
+  }
+  
+  // Reset text color
   pdf.setTextColor(0, 0, 0)
   
   // Header
@@ -117,7 +160,6 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
     try {
       if (data.logoUrl.startsWith('data:image')) {
         const format = data.logoUrl.includes('png') ? 'PNG' : 'JPEG'
-        // Increased logo size: 50x35 (was 35x25)
         pdf.addImage(data.logoUrl, format, margin, y - 5, 50, 35)
       }
     } catch (error) {
@@ -127,10 +169,12 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
     }
   }
   
+  // Company name in Teal color, Helvetica font (only Helvetica text)
   pdf.setFontSize(16)
   pdf.setFont('helvetica', 'bold')
-  pdf.setTextColor(0, 51, 102)
-  pdf.text(data.companyName || 'Greenhills Chemical Incorporation', margin, y + 30)
+  pdf.setTextColor(0, 128, 128) // Teal color
+  pdf.text('Greenhills Chemicals Incorporated', margin, y + 30)
+  pdf.setTextColor(0, 0, 0) // Reset to black
   
   pdf.setFontSize(28)
   pdf.setFont('helvetica', 'bold')
@@ -145,7 +189,7 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   pdf.text(`Receipt No: ${receiptNumber}`, pageWidth - margin - receiptWidth, y + 15)
   pdf.text(`Date: ${issueDate}`, pageWidth - margin - receiptWidth, y + 22)
   
-  pdf.setFont('helvetica', 'normal')
+  pdf.setFont('courier', 'normal')
   pdf.setTextColor(0, 0, 0)
   
   // Corporate Info
@@ -158,75 +202,66 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   pdf.line(margin + contentWidth/2, y, margin + contentWidth/2, y + 60)
   
   pdf.setFontSize(11)
-  pdf.setFont('helvetica', 'bold')
+  pdf.setFont('courier', 'bold')
   pdf.setFillColor(240, 240, 240)
   pdf.rect(margin, y, contentWidth/2, 10, 'F')
   pdf.text('FROM:', margin + boxPadding, y + 7)
   
   pdf.setFontSize(9)
-  pdf.setFont('helvetica', 'normal')
+  pdf.setFont('courier', 'normal')
   pdf.setTextColor(60, 60, 60)
   
   // FROM section with text wrapping
   const fromColumnWidth = contentWidth/2 - boxPadding * 2
   const fromTextY = y + 20
   
-  // Company name with wrapping
   const companyName = data.companyName || 'Greenhills Chemical Incorporation'
   const companyLines = wrapText(pdf, companyName, fromColumnWidth)
   companyLines.forEach((line, i) => {
     pdf.text(line, margin + boxPadding, fromTextY + (i * 8))
   })
   
-  // Address with wrapping
   const companyAddress = data.companyAddress || '123 Industrial Way, Chemical District'
   const addressLines = wrapText(pdf, companyAddress, fromColumnWidth)
   addressLines.forEach((line, i) => {
     pdf.text(line, margin + boxPadding, fromTextY + ((companyLines.length + i) * 8))
   })
   
-  // Email
   const emailY = fromTextY + ((companyLines.length + addressLines.length) * 8)
   pdf.text('Email: billing@greenhills.com', margin + boxPadding, emailY)
   
-  // Phone
   const phone = data.companyPhone || 'Phone: +1 (555) 123-4567'
   pdf.text(phone, margin + boxPadding, emailY + 8)
   
   pdf.setFontSize(11)
-  pdf.setFont('helvetica', 'bold')
+  pdf.setFont('courier', 'bold')
   pdf.setTextColor(0, 0, 0)
   pdf.setFillColor(240, 240, 240)
   pdf.rect(margin + contentWidth/2, y, contentWidth/2, 10, 'F')
   pdf.text('BILL TO:', margin + contentWidth/2 + boxPadding, y + 7)
   
   pdf.setFontSize(9)
-  pdf.setFont('helvetica', 'normal')
+  pdf.setFont('courier', 'normal')
   pdf.setTextColor(60, 60, 60)
   
   // BILL TO section with text wrapping
   const billToColumnWidth = contentWidth/2 - boxPadding * 2
   const billToTextY = y + 20
   
-  // Customer name with wrapping
   const customerName = data.customerName || 'Customer Name'
   const customerLines = wrapText(pdf, customerName, billToColumnWidth)
   customerLines.forEach((line, i) => {
     pdf.text(line, margin + contentWidth/2 + boxPadding, billToTextY + (i * 8))
   })
   
-  // Customer address with wrapping
   const customerAddress = data.customerAddress || 'Customer Address'
   const customerAddressLines = wrapText(pdf, customerAddress, billToColumnWidth)
   customerAddressLines.forEach((line, i) => {
     pdf.text(line, margin + contentWidth/2 + boxPadding, billToTextY + ((customerLines.length + i) * 8))
   })
   
-  // Payment method
   const paymentY = billToTextY + ((customerLines.length + customerAddressLines.length) * 8)
   pdf.text('Payment Method: ' + (data.paymentMethod || 'Bank Transfer'), margin + contentWidth/2 + boxPadding, paymentY)
-  
-  // Currency
   pdf.text('Currency: ' + (data.currency || 'USD'), margin + contentWidth/2 + boxPadding, paymentY + 8)
   
   pdf.setTextColor(0, 0, 0)
@@ -235,19 +270,18 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   y = 135
   
   pdf.setFontSize(12)
-  pdf.setFont('helvetica', 'bold')
+  pdf.setFont('courier', 'bold')
   pdf.text('ITEMS / SERVICES', margin, y)
   y += 10
   
   const colWidths = [contentWidth * 0.5, contentWidth * 0.15, contentWidth * 0.17, contentWidth * 0.18]
   const colX = [margin, margin + colWidths[0], margin + colWidths[0] + colWidths[1], margin + colWidths[0] + colWidths[1] + colWidths[2]]
   
-  // Header row with increased padding (12px)
   pdf.setFillColor(220, 220, 220)
   pdf.rect(margin, y, contentWidth, 12, 'F')
   
   pdf.setFontSize(10)
-  pdf.setFont('helvetica', 'bold')
+  pdf.setFont('courier', 'bold')
   pdf.setTextColor(0, 0, 0)
   pdf.text('Description', colX[0] + 5, y + 8)
   pdf.text('Quantity', colX[1] + 5, y + 8)
@@ -264,7 +298,7 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   y += 12
   
   pdf.setFontSize(9)
-  pdf.setFont('helvetica', 'normal')
+  pdf.setFont('courier', 'normal')
   pdf.setTextColor(60, 60, 60)
   
   let subtotal = 0
@@ -274,17 +308,15 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
     const itemTotal = item.quantity * (item.price || 0)
     subtotal += itemTotal
     
-    // Check if we need a new page (keep table rows together)
-    if (y + 15 > pageHeight - margin - 80) { // Leave room for totals and footer
+    if (y + 15 > pageHeight - margin - 80) {
       pdf.addPage()
       y = margin + 20
       
-      // Redraw table header on new page
       pdf.setFillColor(220, 220, 220)
       pdf.rect(margin, y, contentWidth, 12, 'F')
       
       pdf.setFontSize(10)
-      pdf.setFont('helvetica', 'bold')
+      pdf.setFont('courier', 'bold')
       pdf.setTextColor(0, 0, 0)
       pdf.text('Description', colX[0] + 5, y + 8)
       pdf.text('Quantity', colX[1] + 5, y + 8)
@@ -300,7 +332,7 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
       
       y += 12
       pdf.setFontSize(9)
-      pdf.setFont('helvetica', 'normal')
+      pdf.setFont('courier', 'normal')
       pdf.setTextColor(60, 60, 60)
     }
     
@@ -335,185 +367,226 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   
   const summaryX = pageWidth - margin - 110
   const labelX = summaryX
-  const valueX = pageWidth - margin - 5
+  const valueX = pageWidth - margin - 8
   
-  // Financial box - increased width for amount in words
+  // Financial Summary Box with proper padding for Amount in Words
+  const financialBoxPadding = 8 // 8mm padding inside the box
+  const boxWidth = 115
+  const boxHeight = 65 // Increased height to accommodate padding
+  
   pdf.setDrawColor(200, 200, 200)
   pdf.setLineWidth(0.5)
-  pdf.rect(summaryX - 5, y - 5, 110, 45)
+  // Draw the main financial summary box
+  pdf.rect(summaryX - 5, y - 5, boxWidth, boxHeight)
   
   pdf.setFontSize(10)
-  pdf.setFont('helvetica', 'normal')
+  pdf.setFont('courier', 'normal')
   pdf.setTextColor(80, 80, 80)
   
+  // Subtotal row
   pdf.text('Subtotal:', labelX, y)
-  pdf.text(`$${subtotal.toFixed(2)}`, valueX, y, { align: 'right' })
+  const subtotalStr = `$${subtotal.toFixed(2)}`
+  const subtotalWidth = pdf.getTextWidth(subtotalStr)
+  if (subtotalWidth > 45) {
+    pdf.setFontSize(9)
+  }
+  pdf.text(subtotalStr, valueX, y, { align: 'right' })
+  pdf.setFontSize(10)
   y += 10
   
+  // VAT row
   pdf.text(`VAT (${taxRate}%):`, labelX, y)
-  pdf.text(`$${tax.toFixed(2)}`, valueX, y, { align: 'right' })
+  const taxStr = `$${tax.toFixed(2)}`
+  const taxWidth = pdf.getTextWidth(taxStr)
+  if (taxWidth > 45) {
+    pdf.setFontSize(9)
+  }
+  pdf.text(taxStr, valueX, y, { align: 'right' })
+  pdf.setFontSize(10)
   y += 12
   
-  // Grand Total with single border (cleaner look)
+  // Grand Total row with lines above and below
   pdf.setDrawColor(60, 60, 60)
   pdf.setLineWidth(0.5)
   pdf.line(summaryX - 5, y - 2, pageWidth - margin, y - 2)
   pdf.line(summaryX - 5, y + 10, pageWidth - margin, y + 10)
   
   pdf.setFontSize(12)
-  pdf.setFont('helvetica', 'bold')
+  pdf.setFont('courier', 'bold')
   pdf.setTextColor(180, 0, 0)
   pdf.text('GRAND TOTAL:', labelX, y + 6)
-  pdf.text(`$${grandTotal.toFixed(2)}`, valueX, y + 6, { align: 'right' })
+  const grandTotalStr = `$${grandTotal.toFixed(2)}`
+  const grandTotalWidth = pdf.getTextWidth(grandTotalStr)
+  if (grandTotalWidth > 50) {
+    pdf.setFontSize(10)
+  }
+  pdf.text(grandTotalStr, valueX, y + 6, { align: 'right' })
   
-  y += 14
+  // Amount in Words Section with dedicated container and padding
+  // Create visual separation from Grand Total
+  y += 18 // Space after Grand Total line
   
-  // Amount in Words - Balanced inside the column
-  pdf.setFontSize(8)
-  pdf.setFont('helvetica', 'italic')
-  pdf.setTextColor(100, 100, 100)
+  // Define Amount in Words container with internal padding
+  const amountInWordsContainerY = y
+  const amountInWordsContainerHeight = 25 // Height for the container
+  const amountInWordsPadding = 3 // 3mm internal padding
+  
+  // Draw a subtle background for the Amount in Words section (optional, for visual separation)
+  pdf.setFillColor(250, 250, 250) // Very light gray background
+  pdf.rect(summaryX - 5 + 1, amountInWordsContainerY, boxWidth - 2, amountInWordsContainerHeight, 'F')
+  
+  // Amount in Words - BLACK color, Courier font, with proper padding
+  pdf.setFontSize(9) // Slightly smaller to fit better
+  pdf.setFont('courier', 'bold')
+  pdf.setTextColor(0, 0, 0) // Black color
+  
   const amountInWords = numberToWords(grandTotal)
   
-  // Wrap amount in words text with proper width to fit inside column
-  const wordsMaxWidth = 80
-  const wordsLines = wrapText(pdf, `Amount in words: ${amountInWords}`, wordsMaxWidth)
+  // Wrap text with constrained width to ensure it stays within padded area
+  // Available width = boxWidth - (2 * padding) - label margin
+  const availableWidth = boxWidth - (2 * amountInWordsPadding) - 5
+  const wordsLines = wrapText(pdf, `Amount in words: ${amountInWords}`, availableWidth)
+  
+  // Draw text with internal padding (offset by padding amount)
+  const textStartX = labelX + amountInWordsPadding
+  const textStartY = amountInWordsContainerY + amountInWordsPadding + 4 // +4 for line height offset
+  
   wordsLines.forEach((line, i) => {
-    pdf.text(line, labelX, y + (i * 9))
+    if (i < 3) { // Allow up to 3 lines
+      pdf.text(line, textStartX, textStartY + (i * 5)) // 5mm line spacing
+    }
   })
+  
+  // Reset text color
+  pdf.setTextColor(0, 0, 0)
   
   pdf.setTextColor(0, 0, 0)
   
-  // Notes Section - Before signature and stamp
-  y += 25
+  // Notes Section
+  y += 30
   
-  // Check if we need a new page for notes and footer
-  const notesAndFooterHeight = 80
+  const notesAndFooterHeight = 100
   if (y + notesAndFooterHeight > pageHeight - margin) {
     pdf.addPage()
     y = margin + 20
   }
   
-  // Notes box
   pdf.setDrawColor(200, 200, 200)
   pdf.setLineWidth(0.5)
-  pdf.rect(margin, y, contentWidth, 35)
+  pdf.rect(margin, y, contentWidth, 30)
   
   pdf.setFontSize(10)
-  pdf.setFont('helvetica', 'bold')
+  pdf.setFont('courier', 'bold')
   pdf.setTextColor(80, 80, 80)
-  pdf.text('NOTES / TERMS:', margin + 5, y + 8)
+  pdf.text('NOTES / TERMS:', margin + 5, y + 6)
   
   pdf.setFontSize(9)
-  pdf.setFont('helvetica', 'normal')
+  pdf.setFont('courier', 'normal')
   pdf.setTextColor(100, 100, 100)
   
   const notesText = data.notes || 'Payment is due within 30 days. Please include receipt number on all payments. For questions, contact billing@greenhills.com'
   const notesLines = wrapText(pdf, notesText, contentWidth - 10)
   notesLines.forEach((line, i) => {
-    if (i < 3) { // Limit to 3 lines to fit in box
-      pdf.text(line, margin + 5, y + 18 + (i * 6))
+    if (i < 3) {
+      pdf.text(line, margin + 5, y + 14 + (i * 5))
     }
   })
   
-  // Validation Footer - Dedicated container at bottom
-  y += 45
-  // Layout: Signature on LEFT, Seal Image on RIGHT
-  const validationFooterY = y
-  const validationFooterHeight = 45
+  // Mode of Transfer and Receipt Description - Formal boxed layout
+  y += 35
   
-  // Signature Section - LEFT SIDE with Generated Handwritten Signature
-  const sigX = margin
-  const sigY = validationFooterY + 15
+  // Draw box around transfer and description sections
+  pdf.setDrawColor(200, 200, 200)
+  pdf.setLineWidth(0.5)
+  pdf.rect(margin, y, contentWidth, 45)
   
-  // Signature baseline
-  pdf.setLineWidth(0.3)
-  pdf.setDrawColor(100, 100, 100)
-  pdf.line(sigX, sigY, sigX + 80, sigY)
+  // Vertical divider between sections
+  pdf.line(margin + contentWidth/2, y, margin + contentWidth/2, y + 45)
   
-  // Generate handwritten signature "J. Mitchell" using curves
-  pdf.setLineWidth(0.8)
-  pdf.setDrawColor(0, 30, 80)
-  
-  // J - vertical stroke with slight curve
-  pdf.lines([[0, -12], [1, -2], [-1, 2], [0, 12]], sigX + 8, sigY - 8, [1, 1], 'S')
-  // J - bottom curve
-  pdf.lines([[-3, 0], [-2, 2], [0, 1], [4, 0]], sigX + 8, sigY - 2, [1, 1], 'S')
-  
-  // Dot for J
-  pdf.setFillColor(0, 30, 80)
-  pdf.circle(sigX + 8, sigY - 14, 0.8, 'F')
-  
-  // Period after J
-  pdf.circle(sigX + 12, sigY - 3, 0.6, 'F')
-  
-  // Space
-  
-  // M - first stroke (down)
-  pdf.lines([[0, -10], [-1, 2]], sigX + 18, sigY - 3, [1, 1], 'S')
-  // M - up stroke
-  pdf.lines([[2, -6], [2, 6]], sigX + 18, sigY - 13, [1, 1], 'S')
-  // M - down stroke
-  pdf.lines([[2, 10], [1, -2]], sigX + 22, sigY - 7, [1, 1], 'S')
-  
-  // i - vertical stroke
-  pdf.lines([[0, -8], [0.5, 0]], sigX + 28, sigY - 3, [1, 1], 'S')
-  // i - dot
-  pdf.circle(sigX + 28.5, sigY - 13, 0.7, 'F')
-  
-  // t - vertical
-  pdf.lines([[0, -10], [0, 4]], sigX + 32, sigY - 3, [1, 1], 'S')
-  // t - cross
-  pdf.lines([[-2, 0], [4, 0]], sigX + 30, sigY - 8, [1, 1], 'S')
-  
-  // c - curve
-  pdf.lines([[-3, -2], [-2, 4], [2, 4], [3, -2]], sigX + 38, sigY - 6, [1, 1], 'S')
-  
-  // h - vertical
-  pdf.lines([[0, -12], [0, 8]], sigX + 44, sigY - 3, [1, 1], 'S')
-  // h - curve
-  pdf.lines([[0, -4], [3, -2], [3, 4]], sigX + 44, sigY - 11, [1, 1], 'S')
-  
-  // e - loop
-  pdf.lines([[3, 0], [0, -3], [-3, 0], [0, 3], [2, 1]], sigX + 52, sigY - 6, [1, 1], 'S')
-  
-  // l - vertical
-  pdf.lines([[0, -12], [0.3, 0]], sigX + 58, sigY - 3, [1, 1], 'S')
-  
-  // l - vertical (second)
-  pdf.lines([[0, -12], [0.3, 0]], sigX + 62, sigY - 3, [1, 1], 'S')
-  
-  // Signature flourish underline
-  pdf.setLineWidth(0.4)
-  pdf.lines([[0, 0], [8, -2], [12, 1], [15, -1], [10, 2]], sigX + 20, sigY - 1, [1, 1], 'S')
-  
-  // Authorized Signatory text
-  pdf.setTextColor(100, 100, 100)
+  // MODE OF TRANSFER - Left side
   pdf.setFontSize(9)
-  pdf.setFont('helvetica', 'normal')
-  const authText = 'Authorized Signatory'
-  const authWidth = pdf.getTextWidth(authText)
-  pdf.text(authText, sigX + (80 - authWidth) / 2, sigY + 8)
+  pdf.setFont('courier', 'bold')
+  pdf.setTextColor(80, 80, 80)
+  pdf.text('MODE OF TRANSFER:', margin + 5, y + 8)
   
-  // GCI Seal Image - RIGHT SIDE (using the provided image)
-  const sealX = pageWidth - margin - 60
-  const sealY = validationFooterY + 5
-  const sealWidth = 50
-  const sealHeight = 50
+  pdf.setFontSize(8)
+  pdf.setFont('courier', 'normal')
+  pdf.setTextColor(60, 60, 60)
+  const transferMode = data.transferMode || 'Bank Transfer - Wire'
+  pdf.text(transferMode, margin + 5, y + 18)
   
-  // Add the GCI seal image
+  // RECEIPT DESCRIPTION - Right side
+  pdf.setFontSize(9)
+  pdf.setFont('courier', 'bold')
+  pdf.setTextColor(80, 80, 80)
+  pdf.text('RECEIPT DESCRIPTION:', margin + contentWidth/2 + 5, y + 8)
+  
+  pdf.setFontSize(8)
+  pdf.setFont('courier', 'normal')
+  pdf.setTextColor(60, 60, 60)
+  const receiptDesc = data.receiptDescription || 'Payment for goods and services rendered'
+  const descLines = wrapText(pdf, receiptDesc, contentWidth/2 - 10)
+  descLines.forEach((line, i) => {
+    if (i < 3) {
+      pdf.text(line, margin + contentWidth/2 + 5, y + 18 + (i * 5))
+    }
+  })
+  
+  // Validation Footer - Reduced clearance from receipt description box (was 50, now 35)
+  y += 35
+  
+  const validationFooterY = y
+  
+  // Signature Image - LEFT SIDE using Signature.png (reduced size to match text)
+  const sigX = margin
+  const sigY = validationFooterY + 5
+  const sigWidth = 35
+  const sigHeight = 18
+  
   try {
-    const sealImagePath = '/Untitled design (1).png'
-    // For jsPDF, we need to load the image as base64 or use the public URL
-    // Since this is a local file, we'll try to add it directly
-    pdf.addImage(sealImagePath, 'PNG', sealX, sealY, sealWidth, sealHeight)
+    const signatureImagePath = '/Signature.png'
+    pdf.addImage(signatureImagePath, 'PNG', sigX, sigY, sigWidth, sigHeight)
   } catch (error) {
-    // If image fails to load, draw a placeholder
-    pdf.setDrawColor(150, 150, 150)
-    pdf.setLineWidth(0.5)
-    pdf.rect(sealX, sealY, sealWidth, sealHeight)
-    pdf.setFontSize(8)
-    pdf.setTextColor(150, 150, 150)
-    pdf.text('GCI SEAL', sealX + 15, sealY + 28)
+    // Fallback: draw signature line if image fails (reduced length)
+    pdf.setLineWidth(0.3)
+    pdf.setDrawColor(100, 100, 100)
+    pdf.line(sigX + 5, sigY + 14, sigX + 30, sigY + 14)
+  }
+  
+  // Line directly under signature (reduced length to match image)
+  pdf.setLineWidth(0.5)
+  pdf.setDrawColor(100, 100, 100)
+  pdf.line(sigX + 5, sigY + sigHeight + 2, sigX + 30, sigY + sigHeight + 2)
+  
+  // Fixed signee name: J. Mitchell with "Authorized Signatory | Accountant" on one line
+  pdf.setTextColor(100, 100, 100)
+  pdf.setFontSize(8)
+  pdf.setFont('helvetica', 'normal')
+  const signeeName = 'J. Mitchell'
+  const signeeWidth = pdf.getTextWidth(signeeName)
+  pdf.text(signeeName, sigX + (sigWidth - signeeWidth) / 2, sigY + sigHeight + 10)
+  
+  // "Authorized Signatory | Accountant" on one line below the name
+  pdf.setFontSize(7)
+  const authText = 'Authorized Signatory | Accountant'
+  const authWidth = pdf.getTextWidth(authText)
+  pdf.text(authText, sigX + (sigWidth - authWidth) / 2, sigY + sigHeight + 18)
+  
+  // PAID Stamp Image - RIGHT SIDE using Untitled design (1).png
+  const stampX = pageWidth - margin - 50
+  const stampY = validationFooterY + 5
+  const stampWidth = 40
+  const stampHeight = 40
+  
+  try {
+    const stampImagePath = '/Untitled design (1).png'
+    pdf.addImage(stampImagePath, 'PNG', stampX, stampY, stampWidth, stampHeight)
+  } catch (error) {
+    // Fallback: draw simple PAID text if image fails
+    pdf.setFontSize(14)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setTextColor(180, 0, 0)
+    pdf.text('PAID', stampX + 5, stampY + 25)
   }
   
   pdf.setTextColor(0, 0, 0)
@@ -522,7 +595,7 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   const footerY = pdf.internal.pageSize.getHeight() - 20
   
   pdf.setFontSize(8)
-  pdf.setFont('helvetica', 'italic')
+  pdf.setFont('courier', 'italic')
   pdf.setTextColor(150, 150, 150)
   pdf.text(
     'This is a computer-generated document and requires no physical signature for validity. Thank you for your business.',
@@ -542,7 +615,6 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
 
 // React component
 export function DocumentTemplate({ data, onComplete }: Props) {
-  // Auto-generate PDF when component mounts
   generateReceiptPDF(data, onComplete)
   return null
 }

@@ -98,8 +98,8 @@ export default function ServicesPage() {
             <Link href="/" className="nav-link text-sm">Home</Link>
             <Link href="/about" className="nav-link text-sm">About Us</Link>
             <Link href="/services" className="nav-link text-sm bg-white/20">Services</Link>
-            <Link href="/" className="nav-link text-sm">Track Parcel</Link>
-            <Link href="/about" className="nav-link text-sm">Contact</Link>
+            <Link href="/track" className="nav-link text-sm">Track Parcel</Link>
+            <Link href="/contact" className="nav-link text-sm">Contact</Link>
           </nav>
 
           {/* Language Switcher */}
@@ -180,7 +180,7 @@ export default function ServicesPage() {
                   
                   <div className="mt-8">
                     <Link 
-                      href="/"
+                      href="/contact"
                       className="skyship-button px-8 py-3 inline-block text-center"
                     >
                       Get a Quote
@@ -205,7 +205,7 @@ export default function ServicesPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
-                href="/about"
+                href="/contact"
                 className="skyship-button px-8 py-4 text-lg font-semibold inline-block"
               >
                 Contact Our Team
@@ -245,7 +245,7 @@ export default function ServicesPage() {
                 <li><Link href="/" className="skyship-footer-link text-sm">Home</Link></li>
                 <li><Link href="/about" className="skyship-footer-link text-sm">About Us</Link></li>
                 <li><Link href="/services" className="skyship-footer-link text-sm">Services</Link></li>
-                <li><Link href="/" className="skyship-footer-link text-sm">Track Parcel</Link></li>
+                <li><Link href="/track" className="skyship-footer-link text-sm">Track Parcel</Link></li>
               </ul>
             </div>
 

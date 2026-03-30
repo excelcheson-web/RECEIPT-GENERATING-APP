@@ -186,7 +186,7 @@ export default function AboutPage() {
             <Link href="/#track" className="text-white/80 hover:text-white transition font-medium">
               {t.nav.track}
             </Link>
-            <Link href="/#contact" className="text-white/80 hover:text-white transition font-medium">
+            <Link href="/contact" className="text-white/80 hover:text-white transition font-medium">
               {t.nav.contact}
             </Link>
           </nav>
@@ -355,9 +355,9 @@ export default function AboutPage() {
             <div>
               <h4 className="text-white font-semibold mb-4">Contact</h4>
               <ul className="space-y-2 text-white/60 text-sm">
-                <li className="flex items-center"><MailIcon /> info@skydex.com</li>
-                <li className="flex items-center"><PhoneIcon /> +1 (555) 123-4567</li>
-                <li className="flex items-center"><MapPinIcon /> Global Headquarters</li>
+                <li className="flex items-center"><MailIcon /> contact@skydexlogistics.com</li>
+                <li className="flex items-center"><PhoneIcon /> +44 7935 244329</li>
+                <li className="flex items-center"><MapPinIcon /> GOLDEN CROSS HOUSE, 456-458 STRAND</li>
               </ul>
             </div>
           </div>

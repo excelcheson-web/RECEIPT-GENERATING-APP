@@ -126,14 +126,15 @@ export default function TrackPage() {
       <main className="relative pt-24 sm:pt-32 pb-12 px-4 sm:px-6 lg:px-8 min-h-screen flex items-center justify-center">
         <div className="max-w-2xl mx-auto w-full">
           <div className="hero-glass-panel p-6 sm:p-10 lg:p-12 text-center">
-            {/* Icon */}
-            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl overflow-hidden bg-[#9DC400]/20 flex items-center justify-center">
-              <Image 
-                src="https://images.unsplash.com/photo-1607344649296-a261e3e4b5bf?w=100&q=80" 
-                alt="Track Package" 
-                width={80} 
-                height={80} 
+            {/* Logo */}
+            <div className="w-20 h-20 mx-auto mb-6 rounded-2xl overflow-hidden shadow-lg shadow-[#9DC400]/30 border border-[#9DC400]/30">
+              <Image
+                src="/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png"
+                alt="Skyship Logistics Logo"
+                width={80}
+                height={80}
                 className="object-cover w-full h-full"
+                priority
               />
             </div>
 

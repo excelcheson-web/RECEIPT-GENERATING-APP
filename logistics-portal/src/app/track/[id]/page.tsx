@@ -498,7 +498,7 @@ export default function TrackPage() {
               <Link href="/about" className="nav-link text-sm">{t('aboutUs')}</Link>
               <a href="/#services" className="nav-link text-sm">{t('services')}</a>
               <a href="/#track" className="nav-link text-sm">{t('trackParcel')}</a>
-              <a href="/#contact" className="nav-link text-sm">{t('contact')}</a>
+              <Link href="/contact" className="nav-link text-sm">{t('contact')}</Link>
             </nav>
 
             {/* Language Switcher */}
@@ -595,7 +595,7 @@ export default function TrackPage() {
                   <li><Link href="/about" className="skyship-footer-link text-sm">{t('aboutUs')}</Link></li>
                   <li><a href="/#services" className="skyship-footer-link text-sm">{t('services')}</a></li>
                   <li><a href="/#track" className="skyship-footer-link text-sm">{t('trackParcel')}</a></li>
-                  <li><a href="#" className="skyship-footer-link text-sm">{t('getQuote')}</a></li>
+                  <li><Link href="/contact" className="skyship-footer-link text-sm">{t('getQuote')}</Link></li>
                 </ul>
               </div>
 
@@ -682,7 +682,7 @@ export default function TrackPage() {
             <Link href="/about" className="nav-link text-sm">{t('aboutUs')}</Link>
             <a href="/#services" className="nav-link text-sm">{t('services')}</a>
             <a href="/#track" className="nav-link text-sm">{t('trackParcel')}</a>
-            <a href="/#contact" className="nav-link text-sm">{t('contact')}</a>
+            <Link href="/contact" className="nav-link text-sm">{t('contact')}</Link>
           </nav>
 
           {/* Language Switcher */}
@@ -1060,7 +1060,7 @@ export default function TrackPage() {
                 <li><Link href="/about" className="skyship-footer-link text-sm">{t('aboutUs')}</Link></li>
                 <li><a href="/#services" className="skyship-footer-link text-sm">{t('services')}</a></li>
                 <li><a href="/#track" className="skyship-footer-link text-sm">{t('trackParcel')}</a></li>
-                <li><a href="#" className="skyship-footer-link text-sm">{t('getQuote')}</a></li>
+                  <li><Link href="/contact" className="skyship-footer-link text-sm">{t('getQuote')}</Link></li>
               </ul>
             </div>
 

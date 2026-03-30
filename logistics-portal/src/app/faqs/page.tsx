@@ -41,7 +41,7 @@ const faqs = [
   },
   {
     question: "How can I contact customer support?",
-    answer: "Our customer support is available 24/7 via multiple channels: Live Chat on our website, email at support@skyshiplogistics.com, phone at +1 (555) 123-4567, or through our Help Center with detailed guides and tutorials."
+    answer: "Our customer support is available 24/7 via multiple channels: Live Chat on our website, email at contact@skydexlogistics.com, phone at +44 7935 244329, or through our Help Center with detailed guides and tutorials."
   }
 ]
 

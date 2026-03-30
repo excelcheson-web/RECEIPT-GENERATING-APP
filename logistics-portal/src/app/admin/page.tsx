@@ -372,7 +372,7 @@ export default function AdminPage() {
                 value={companyPhone}
                 onChange={(e) => setCompanyPhone(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-black/50 text-gray-900 dark:text-white"
-                placeholder="+1 (555) 123-4567"
+                placeholder="+44 7935 244329"
               />
             </div>
           </div>

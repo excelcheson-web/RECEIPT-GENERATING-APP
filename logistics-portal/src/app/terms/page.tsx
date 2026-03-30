@@ -64,9 +64,9 @@ export default function TermsPage() {
               <p className="leading-relaxed">
                 For questions about these Terms & Conditions, please contact us at:
                 <br />
-                Email: legal@skyshiplogistics.com
+                Email: legal@skydexlogistics.com
                 <br />
-                Phone: +1 (555) 123-4567
+                Phone: +44 7935 244329
               </p>
             </section>
 

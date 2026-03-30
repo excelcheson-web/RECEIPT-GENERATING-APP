@@ -129,6 +129,8 @@ export interface DocumentConfig {
   customerAddress?: string;
   taxRate?: number;
   description?: string; // NEW: Receipt description/memo
+  transferMode?: string; // NEW: Mode of transfer (e.g., Bank Transfer - Wire)
+  receiptDescription?: string; // NEW: Detailed receipt description
   // Waybill specific data
   waybillData?: WaybillFormData;
 }

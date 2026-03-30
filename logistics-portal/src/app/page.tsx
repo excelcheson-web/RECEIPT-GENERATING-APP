@@ -157,14 +157,13 @@ export default function Home() {
             <Link href="/about" className="nav-link text-sm">{t.nav.about}</Link>
             <a href="#services" className="nav-link text-sm">{t.nav.services}</a>
             <Link href="/track" className="nav-link text-sm">{t.nav.track}</Link>
-            <a href="#contact" className="nav-link text-sm">{t.nav.contact}</a>
+            <Link href="/contact" className="nav-link text-sm">{t.nav.contact}</Link>
           </nav>
 
           {/* Right Side: Language + Profile + Mobile Menu */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden sm:block">
-              <LanguageSwitcher />
-            </div>
+            {/* Language Switcher - Now visible on all screen sizes */}
+            <LanguageSwitcher />
             
             {/* IM Avatar Icon */}
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-[#9DC400] to-[#7A9A00] flex items-center justify-center text-[#001f3f] font-bold text-xs sm:text-sm shadow-lg shadow-[#9DC400]/30">
@@ -222,13 +221,18 @@ export default function Home() {
               >
                 {t.nav.track}
               </Link>
-              <a 
-                href="#contact" 
+              <Link 
+                href="/contact" 
                 className="nav-link text-sm py-2"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {t.nav.contact}
-              </a>
+              </Link>
+              {/* Language Switcher in Mobile Menu */}
+              <div className="border-t border-white/20 pt-2 mt-2">
+                <span className="text-white/60 text-xs uppercase tracking-wider mb-2 block">Language</span>
+                <LanguageSwitcher />
+              </div>
             </nav>
           </div>
         )}
@@ -237,6 +241,13 @@ export default function Home() {
       {/* Hero Section - NOW USING TRANSLATIONS */}
       <section id="track" className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 pt-20">
         <div className="max-w-6xl mx-auto w-full">
+          {/* Language Switcher - Left side of hero section (mobile only) */}
+          <div className="absolute left-4 sm:left-6 lg:left-8 top-24 sm:top-28 z-10 md:hidden">
+            <div className="glass-panel p-2 rounded-xl">
+              <LanguageSwitcher />
+            </div>
+          </div>
+          
           <div className="hero-glass-panel p-8 sm:p-12 lg:p-16 max-w-3xl mx-auto text-center">
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white text-high-contrast mb-6 leading-tight">
@@ -582,7 +593,7 @@ export default function Home() {
       {/* Floating Action Buttons */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
         <a
-          href="https://wa.me/18005557447"
+          href="https://wa.me/447935244329"
           target="_blank"
           rel="noopener noreferrer"
           className="w-14 h-14 bg-[#25D366] rounded-full flex items-center justify-center shadow-lg shadow-[#25D366]/30 hover:scale-110 transition-transform duration-300 group"
@@ -632,7 +643,7 @@ export default function Home() {
                 <li><Link href="/about" className="text-white/60 hover:text-white text-sm transition">{t.footer.about}</Link></li>
                 <li><a href="#services" className="text-white/60 hover:text-white text-sm transition">{t.footer.services}</a></li>
                 <li><a href="#track" className="text-white/60 hover:text-white text-sm transition">{t.footer.trackParcel}</a></li>
-                <li><a href="#" className="text-white/60 hover:text-white text-sm transition">{t.footer.getQuote}</a></li>
+                <li><Link href="/contact" className="text-white/60 hover:text-white text-sm transition">{t.footer.getQuote}</Link></li>
               </ul>
             </div>
 
