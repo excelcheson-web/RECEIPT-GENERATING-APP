@@ -109,6 +109,7 @@ export default function Home() {
   const { t } = useTranslation()
   const [trackingNumber, setTrackingNumber] = useState('')
   const [currentTestimonial, setCurrentTestimonial] = useState(0)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const handleTrack = (e: React.FormEvent) => {
     e.preventDefault()
@@ -132,50 +133,105 @@ export default function Home() {
 
       {/* Glassmorphic Navigation Bar */}
       <header className="fixed top-0 left-0 right-0 z-50 glass-nav-10px">
-        <div className="max-w-7xl mx-auto flex items-center justify-between h-16 sm:h-20 px-4 sm:px-6 lg:px-8">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-3">
-            <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden shadow-lg shadow-[#9DC400]/30">
+        <div className="max-w-7xl mx-auto flex items-center justify-between h-16 sm:h-20 px-3 sm:px-6 lg:px-8">
+          {/* Logo - Fixed for mobile */}
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-xl overflow-hidden shadow-lg shadow-[#9DC400]/30 flex-shrink-0">
               <Image
                 src="/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png"
                 alt="Skyship Logistics Logo"
                 fill
                 className="object-cover"
-                sizes="96px"
+                sizes="64px"
                 priority
               />
             </div>
-            <span className="text-xl sm:text-2xl font-bold text-white text-high-contrast">
+            <span className="text-lg sm:text-xl lg:text-2xl font-bold text-white text-high-contrast whitespace-nowrap">
               Skyship Logistics
             </span>
           </Link>
 
-          {/* Navigation Links - Desktop - NOW USING TRANSLATIONS */}
+          {/* Navigation Links - Desktop */}
           <nav className="hidden md:flex items-center gap-2">
             <Link href="/" className="nav-link text-sm">{t.nav.home}</Link>
             <Link href="/about" className="nav-link text-sm">{t.nav.about}</Link>
             <a href="#services" className="nav-link text-sm">{t.nav.services}</a>
-            <a href="#track" className="nav-link text-sm">{t.nav.track}</a>
+            <Link href="/track" className="nav-link text-sm">{t.nav.track}</Link>
             <a href="#contact" className="nav-link text-sm">{t.nav.contact}</a>
           </nav>
 
-          {/* Right Side: Language + Profile */}
-          <div className="flex items-center gap-3">
-            <LanguageSwitcher />
+          {/* Right Side: Language + Profile + Mobile Menu */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="hidden sm:block">
+              <LanguageSwitcher />
+            </div>
             
             {/* IM Avatar Icon */}
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#9DC400] to-[#7A9A00] flex items-center justify-center text-[#001f3f] font-bold text-sm shadow-lg shadow-[#9DC400]/30">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-[#9DC400] to-[#7A9A00] flex items-center justify-center text-[#001f3f] font-bold text-xs sm:text-sm shadow-lg shadow-[#9DC400]/30">
               IM
             </div>
             
-            {/* Mobile Menu Button */}
-            <button className="md:hidden glass-button p-2">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+            {/* Mobile Menu Button - Now Functional */}
+            <button 
+              className="md:hidden glass-button p-2"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              aria-label="Toggle mobile menu"
+            >
+              {mobileMenuOpen ? (
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              )}
             </button>
           </div>
         </div>
+
+        {/* Mobile Menu Dropdown */}
+        {mobileMenuOpen && (
+          <div className="md:hidden glass-panel mx-3 mt-2 p-4 rounded-xl">
+            <nav className="flex flex-col gap-2">
+              <Link 
+                href="/" 
+                className="nav-link text-sm py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {t.nav.home}
+              </Link>
+              <Link 
+                href="/about" 
+                className="nav-link text-sm py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {t.nav.about}
+              </Link>
+              <a 
+                href="#services" 
+                className="nav-link text-sm py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {t.nav.services}
+              </a>
+              <Link 
+                href="/track" 
+                className="nav-link text-sm py-2 text-[#9DC400]"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {t.nav.track}
+              </Link>
+              <a 
+                href="#contact" 
+                className="nav-link text-sm py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {t.nav.contact}
+              </a>
+            </nav>
+          </div>
+        )}
       </header>
 
       {/* Hero Section - NOW USING TRANSLATIONS */}
