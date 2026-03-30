@@ -43,7 +43,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   };
 
   const currentLanguage = languages.find(l => l.code === currentLang) || languages[0];
-  const dir = currentLanguage.dir || 'ltr';
+  const dir = (currentLanguage.dir || 'ltr') as 'ltr' | 'rtl';
 
   return (
     <LanguageContext.Provider value={{ currentLang, setLanguage, dir, currentLanguage }}>

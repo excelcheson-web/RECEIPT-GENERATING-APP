@@ -1,9 +1,9 @@
 import { useLanguage } from './LanguageContext';
-import { translations, Translations } from './translations';
+import { translations, Translations, LanguageCode } from './translations';
 
-export function useTranslation(): { t: Translations; currentLang: string } {
+export function useTranslation(): { t: Translations; currentLang: LanguageCode } {
   const { currentLang } = useLanguage();
-  const t = translations[currentLang] || translations.EN;
+  const t = translations[currentLang] as Translations;
   
   return { t, currentLang };
 }
