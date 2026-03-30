@@ -24,9 +24,11 @@ export default function ContactForm() {
     const templateParams = {
       user_name: formData.get('user_name'),
       user_email: formData.get('user_email'),
+      from_name: formData.get('user_name'),
+      from_email: formData.get('user_email'),
       subject: formData.get('subject'),
       message: formData.get('message'),
-      to_email: 'contact@skydexlogistics.com', // Admin email
+      reply_to: formData.get('user_email'),
     };
 
     console.log('Sending email with params:', templateParams);
