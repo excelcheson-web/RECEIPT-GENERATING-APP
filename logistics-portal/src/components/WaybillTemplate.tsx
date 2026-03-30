@@ -3,370 +3,661 @@
 import { useEffect } from 'react'
 import jsPDF from 'jspdf'
 import JsBarcode from 'jsbarcode'
-import QRCode from 'qrcode'
 import type { WaybillFormData } from '@/lib/types'
-import { SKYDEX_CONFIG } from '@/lib/constants'
+import { SKYSHIP_CONFIG } from '@/lib/constants'
 
 interface WaybillTemplateProps {
   data: WaybillFormData
   onComplete?: (pdfUrl: string) => void
 }
 
-// Skyship brand colors
-const BRAND = {
-  primary: '#001f3f',    // Dark blue
-  secondary: '#9DC400', // Lime green
-  accent: '#7A9A00',   // Darker green
-  text: '#333333',
-  light: '#f5f5f5',
-  white: '#ffffff',
-  red: '#dc2626',        // For stamps
+// Professional Waybill color scheme - Faded lemon green + soft blue
+const COLORS = {
+  primary: '#CDDC39',       // Soft lemon green for headers
+  secondary: '#1E3A8A',     // Deep blue for borders and text
+  border: '#DCDCDC',         // Light grey borders
+  background: '#FAFAFA',     // Off-white background
+  textDark: '#1F2937',       // Dark text
+  textLight: '#6B7280',      // Light text
+  white: '#FFFFFF',
+}
+
+// Cache for loaded images
+const imageCache: Record<string, string> = {}
+
+// Function to load image and convert to data URL
+async function loadImageAsDataURL(url: string): Promise<string | null> {
+  if (imageCache[url]) return imageCache[url]
+  
+  try {
+    const response = await fetch(url)
+    if (!response.ok) return null
+    
+    const blob = await response.blob()
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const result = reader.result as string
+        imageCache[url] = result
+        resolve(result)
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  } catch (e) {
+    console.error('Failed to load image:', url, e)
+    return null
+  }
+}
+
+// Get dynamic title based on transport mode
+function getWaybillTitle(transportMode?: string): string {
+  const mode = transportMode?.toLowerCase() || 'air'
+  
+  switch (mode) {
+    case 'air':
+      return 'AIR WAYBILL'
+    case 'sea':
+      return 'SEA WAYBILL'
+    case 'land':
+      return 'LAND WAYBILL'
+    case 'door_to_door':
+    case 'door':
+      return 'DOOR TO DOOR WAYBILL'
+    default:
+      return 'AIR WAYBILL'
+  }
 }
 
 export async function generateWaybillPDF(data: WaybillFormData): Promise<string> {
-  // Create PDF with A4 size
+  // Create PDF with landscape A4 size for horizontal layout
   const pdf = new jsPDF({
-    orientation: 'portrait',
+    orientation: 'landscape',
     unit: 'mm',
     format: 'a4',
     putOnlyUsedFonts: true,
     floatPrecision: 16
   })
 
-  const pageWidth = 210
-  const pageHeight = 297
-  const margin = 10
+  const pageWidth = 297  // A4 landscape width
+  const pageHeight = 210 // A4 landscape height
+  const margin = 8
   const contentWidth = pageWidth - 2 * margin
+  
+  // Set off-white background
+  pdf.setFillColor(COLORS.background)
+  pdf.rect(0, 0, pageWidth, pageHeight, 'F')
 
-  // Helper function to draw grid box
-  const drawGridBox = (x: number, y: number, w: number, h: number, title: string, content: string[]) => {
-    // Box border
-    pdf.setDrawColor(0)
+  let currentY = margin
+
+  // ========== HEADER SECTION ==========
+  const headerHeight = 30  // Increased from 25 to 30 to prevent overlap
+  
+  // Left: Official Stamp Box - Positioned higher to prevent overlap with shipper box
+  const stampBoxWidth = 35
+  const stampBoxHeight = 30 // Reduced from 35 to 30
+  const stampX = margin
+  const stampY = currentY
+  
+  pdf.setDrawColor(COLORS.secondary)
+  pdf.setLineWidth(1)
+  pdf.rect(stampX, stampY, stampBoxWidth, stampBoxHeight)
+  
+  // Stamp label
+  pdf.setFillColor(COLORS.primary)
+  pdf.rect(stampX, stampY, stampBoxWidth, 6, 'F')
+  pdf.setTextColor(COLORS.secondary)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(7)
+  pdf.text('OFFICIAL STAMP', stampX + 2, stampY + 4)
+  
+  // Try to add stamp image - Compact size
+  const stampImage = await loadImageAsDataURL('/LOGISTICS STAMP.png')
+  if (stampImage) {
+    try {
+      // Compact stamp image to fit within 35x30mm box
+      pdf.addImage(stampImage, 'PNG', stampX + 3, stampY + 8, 29, 20)
+    } catch (e) {
+      console.error('Failed to add stamp image:', e)
+    }
+  } else {
+    pdf.setTextColor(COLORS.textLight)
+    pdf.setFont('helvetica', 'italic')
+    pdf.setFontSize(8)
+    pdf.text('[Company Stamp]', stampX + 6, stampY + 20)
+  }
+
+  // Center: Logo, WAYBILL Title and Company Info
+  const title = getWaybillTitle(data.transportMode)
+  
+  // Try to add company logo - positioned to cover space to the left
+  const logoUrl = data.logoUrl || data.senderLogoUrl || '/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png'
+  const logoImage = await loadImageAsDataURL(logoUrl)
+  
+  // Calculate title width to position logo beside it
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(24)
+  const titleText = 'WAYBILL'
+  const titleWidth = pdf.getTextWidth(titleText)
+  const titleX = pageWidth / 2
+  const titleY = currentY + 8
+  
+  // Position logo to the left of the title with spacing - SIGNIFICANTLY INCREASED SIZE
+  const logoWidth = 55  // Increased from 40 to 55 to cover more space
+  const logoHeight = 38 // Increased from 28 to 38 for proportional scaling
+  const spacing = 8     // Reduced spacing to allow logo to extend further left
+  
+  if (logoImage) {
+    try {
+      // Logo positioned to the left of the title, vertically centered with title
+      // Extended to the left to cover more space with small marginal space to shipper/consignee boxes
+      const logoX = titleX - (titleWidth / 2) - logoWidth - spacing
+      const logoY = titleY - (logoHeight / 2) - 2 // Adjust to vertically align with title
+      pdf.addImage(logoImage, 'PNG', logoX, logoY, logoWidth, logoHeight)
+    } catch (e) {
+      console.error('Failed to add logo image:', e)
+    }
+  }
+  
+  pdf.setTextColor(COLORS.secondary)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(24)
+  pdf.text(titleText, titleX, titleY, { align: 'center' })
+  
+  pdf.setFontSize(14)
+  pdf.text(SKYSHIP_CONFIG.name, pageWidth / 2, currentY + 15, { align: 'center' })
+  
+  pdf.setFontSize(11)
+  pdf.text(title, pageWidth / 2, currentY + 21, { align: 'center' })
+
+  // Right: Barcode and Waybill Number
+  const barcodeCanvas = document.createElement('canvas')
+  const barcodeValue = (data.waybillNumber || data.consignmentNumber || 'UNKNOWN').toString()
+  JsBarcode(barcodeCanvas, barcodeValue, {
+    format: 'CODE128',
+    width: 1.5,
+    height: 30,
+    displayValue: false,
+    margin: 0,
+  })
+  const barcodeDataUrl = barcodeCanvas.toDataURL('image/png')
+  
+  const barcodeWidth = 70
+  const barcodeHeight = 18
+  const barcodeX = pageWidth - margin - barcodeWidth - 5
+  const barcodeY = currentY + 2
+  
+  // Waybill Number above barcode
+  pdf.setTextColor(COLORS.secondary)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(9)
+  pdf.text('WAYBILL NUMBER:', barcodeX, barcodeY - 1)
+  
+  pdf.setFont('courier', 'bold')
+  pdf.setFontSize(11)
+  pdf.text(barcodeValue, barcodeX, barcodeY + 4)
+  
+  // Barcode image
+  pdf.addImage(barcodeDataUrl, 'PNG', barcodeX, barcodeY + 7, barcodeWidth, barcodeHeight)
+
+  currentY += headerHeight + 5
+
+  // ========== ROW 1: Shipper | Consignee | Routing ==========
+  const row1Height = 45
+  const colWidth = contentWidth / 3
+  
+  // Helper to draw section box
+  const drawSection = (x: number, y: number, w: number, h: number, title: string, lines: { label: string; value: string }[]) => {
+    // Border
+    pdf.setDrawColor(COLORS.border)
     pdf.setLineWidth(0.5)
     pdf.rect(x, y, w, h)
-
-    // Title background
-    pdf.setFillColor(BRAND.primary)
-    pdf.rect(x, y, w, 8, 'F')
-
-    // Title text
-    pdf.setTextColor(BRAND.white)
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(10)
-    pdf.text(title, x + 2, y + 5.5)
-
-    // Content
-    pdf.setTextColor(BRAND.text)
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(9)
     
-    let contentY = y + 12
-    content.forEach(line => {
-      if (contentY < y + h - 3) {
-        pdf.text(line, x + 3, contentY)
-        contentY += 5
+    // Title background
+    pdf.setFillColor(COLORS.primary)
+    pdf.rect(x, y, w, 7, 'F')
+    
+    // Title text
+    pdf.setTextColor(COLORS.secondary)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(9)
+    pdf.text(title.toUpperCase(), x + 3, y + 5)
+    
+    // Content lines
+    let lineY = y + 12
+    pdf.setFontSize(8)
+    
+    lines.forEach(line => {
+      if (lineY < y + h - 3) {
+        // Label
+        pdf.setTextColor(COLORS.textLight)
+        pdf.setFont('helvetica', 'bold')
+        pdf.text(line.label, x + 3, lineY)
+        
+        // Value
+        const labelWidth = pdf.getTextWidth(line.label)
+        pdf.setTextColor(COLORS.textDark)
+        pdf.setFont('courier', 'bold')
+        pdf.setFontSize(9)
+        pdf.text(line.value, x + 3 + labelWidth + 2, lineY)
+        
+        lineY += 6
       }
     })
   }
 
-  // ========== HEADER ==========
-  // Skyship branding header
-  pdf.setFillColor(BRAND.primary)
-  pdf.rect(0, 0, pageWidth, 35, 'F')
-
-  // Logo placeholder (left)
-  pdf.setTextColor(BRAND.secondary)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(20)
-  pdf.text('SKYDEX', margin, 15)
-
-  pdf.setTextColor(BRAND.white)
-  pdf.setFontSize(12)
-  pdf.text('LOGISTICS', margin, 22)
-
-  // Waybill title (center)
-  pdf.setTextColor(BRAND.white)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(24)
-  pdf.text('WAYBILL', pageWidth / 2, 20, { align: 'center' })
-
-  // Consignment number (right)
-  pdf.setTextColor(BRAND.secondary)
-  pdf.setFontSize(10)
-  pdf.text('CONSIGNMENT NO.', pageWidth - margin - 40, 12, { align: 'right' })
-  
-  pdf.setTextColor(BRAND.white)
-  pdf.setFont('courier', 'bold')
-  pdf.setFontSize(14)
-  pdf.text(data.consignmentNumber, pageWidth - margin - 40, 20, { align: 'right' })
-
-  // ========== BARCODE ==========
-  // Generate barcode
-  const barcodeCanvas = document.createElement('canvas')
-  JsBarcode(barcodeCanvas, data.consignmentNumber, {
-    format: 'CODE128',
-    width: 2,
-    height: 40,
-    displayValue: true,
-    font: 'monospace',
-    fontSize: 12,
-    textMargin: 2,
-  })
-  const barcodeDataUrl = barcodeCanvas.toDataURL('image/png')
-  
-  // Add barcode to PDF (centered below header)
-  pdf.addImage(barcodeDataUrl, 'PNG', pageWidth / 2 - 50, 38, 100, 25)
-
-  let currentY = 70
-
-  // ========== SECTION 1: FROM (SENDER) ==========
-  drawGridBox(
+  // Column 1: Shipper (FROM)
+  drawSection(
     margin,
     currentY,
-    contentWidth / 2 - 2,
-    35,
-    '1. FROM (SENDER)',
+    colWidth - 2,
+    row1Height,
+    'Shipper (From)',
     [
-      `Account No: ${data.senderAccountNo || 'N/A'}`,
-      `Name: ${data.senderName}`,
-      `Address: ${data.senderAddress}`,
+      { label: 'Name:', value: data.senderName || 'N/A' },
+      { label: 'Address:', value: (data.senderAddress || '').substring(0, 40) },
+      { label: 'Phone:', value: data.senderPhone || data.senderTelephone || 'N/A' },
+      { label: 'Account:', value: data.senderAccountNo || data.accountNumber || 'N/A' },
     ]
   )
 
-  // ========== SECTION 2: TO (RECEIVER) ==========
-  drawGridBox(
-    margin + contentWidth / 2 + 2,
+  // Column 2: Consignee (TO)
+  drawSection(
+    margin + colWidth,
     currentY,
-    contentWidth / 2 - 2,
-    35,
-    '2. TO (RECEIVER)',
+    colWidth - 2,
+    row1Height,
+    'Consignee (To)',
     [
-      `Name: ${data.receiverName}`,
-      `Telephone: ${data.receiverTelephone}`,
-      `Address: ${data.receiverAddress}`,
+      { label: 'Name:', value: data.receiverName || 'N/A' },
+      { label: 'Address:', value: (data.receiverAddress || '').substring(0, 40) },
+      { label: 'Phone:', value: data.receiverPhone || data.receiverTelephone || 'N/A' },
+      { label: 'City:', value: data.receiverCity || 'N/A' },
     ]
   )
 
-  currentY += 40
-
-  // ========== SECTION 3: SHIPMENT SPECS ==========
-  drawGridBox(
-    margin,
+  // Column 3: Routing & Destination
+  const departure = data.portOfDeparture || data.airportOfDeparture || 'LAGOS/LOS'
+  const destination = data.portOfDestination || data.airportOfDestination || 'N/A'
+  const departureDate = data.departureDate || new Date().toISOString().split('T')[0]
+  
+  drawSection(
+    margin + colWidth * 2,
     currentY,
-    contentWidth,
-    30,
-    '3. SHIPMENT SPECIFICATIONS',
+    colWidth - 2,
+    row1Height,
+    'Routing & Destination',
     [
-      `Pieces: ${data.pieces} | Weight: ${data.weight} kg | Dimensions: ${data.dimensions.length}×${data.dimensions.width}×${data.dimensions.height} cm`,
-      `Contents: ${data.contents}`,
+      { label: 'Departure:', value: departure },
+      { label: 'Destination:', value: destination },
+      { label: 'Date:', value: departureDate },
+      { label: 'Route:', value: (data.routeNumber || '').substring(0, 25) || 'N/A' },
     ]
   )
 
-  currentY += 35
+  currentY += row1Height + 5
 
-  // ========== SECTION 4: FINANCIALS ==========
-  // Create financial table
-  pdf.setDrawColor(0)
+  // ========== ROW 2: Description (wide) | Charges (side) ==========
+  const row2Height = 55
+  const descWidth = contentWidth * 0.65
+  const chargesWidth = contentWidth * 0.35 - 5
+
+  // Description of Goods Table
+  pdf.setDrawColor(COLORS.border)
   pdf.setLineWidth(0.5)
-  pdf.rect(margin, currentY, contentWidth, 35)
-
-  // Title
-  pdf.setFillColor(BRAND.primary)
-  pdf.rect(margin, currentY, contentWidth, 8, 'F')
-  pdf.setTextColor(BRAND.white)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(10)
-  pdf.text('4. FINANCIALS (USD)', margin + 2, currentY + 5.5)
-
-  // Financial data table
-  const colWidth = contentWidth / 5
-  const financialY = currentY + 12
-
-  // Headers
-  pdf.setTextColor(BRAND.text)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(8)
-  pdf.text('Insurance', margin + 3, financialY)
-  pdf.text('Airport Tax & VAT', margin + colWidth + 3, financialY)
-  pdf.text('Destination Duty', margin + colWidth * 2 + 3, financialY)
-  pdf.text('Base Freight', margin + colWidth * 3 + 3, financialY)
-  pdf.text('TOTAL', margin + colWidth * 4 + 3, financialY)
-
-  // Values
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(10)
-  pdf.text(`$${data.insurance.toFixed(2)}`, margin + 3, financialY + 8)
-  pdf.text(`$${data.airportTaxVat.toFixed(2)}`, margin + colWidth + 3, financialY + 8)
-  pdf.text(`$${data.destinationDuty.toFixed(2)}`, margin + colWidth * 2 + 3, financialY + 8)
-  pdf.text(`$${data.baseFreight.toFixed(2)}`, margin + colWidth * 3 + 3, financialY + 8)
+  pdf.rect(margin, currentY, descWidth, row2Height)
   
-  // Total in bold with highlight
+  // Table header
+  pdf.setFillColor(COLORS.primary)
+  pdf.rect(margin, currentY, descWidth, 8, 'F')
+  pdf.setTextColor(COLORS.secondary)
   pdf.setFont('helvetica', 'bold')
-  pdf.setTextColor(BRAND.secondary)
-  pdf.text(`$${data.currencyTotal.toFixed(2)}`, margin + colWidth * 4 + 3, financialY + 8)
-
-  currentY += 40
-
-  // ========== SECTION 5: SERVICE TYPE ==========
-  pdf.setDrawColor(0)
-  pdf.rect(margin, currentY, contentWidth, 20)
-
-  // Title
-  pdf.setFillColor(BRAND.primary)
-  pdf.rect(margin, currentY, contentWidth, 8, 'F')
-  pdf.setTextColor(BRAND.white)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(10)
-  pdf.text('5. SERVICE TYPE', margin + 2, currentY + 5.5)
-
-  // Service checkboxes
-  const serviceY = currentY + 14
-  const services = [
-    { label: 'Diplomatic Courier', checked: data.serviceType.diplomaticCourier },
-    { label: 'Domestic', checked: data.serviceType.domestic },
-    { label: 'World Mail', checked: data.serviceType.worldMail },
-    { label: 'Repair/Return', checked: data.serviceType.repairReturn },
-  ]
-
-  pdf.setTextColor(BRAND.text)
-  pdf.setFont('helvetica', 'normal')
   pdf.setFontSize(9)
-
-  services.forEach((service, index) => {
-    const x = margin + 5 + (index * (contentWidth / 4))
-    // Draw checkbox
-    pdf.rect(x, serviceY - 3, 4, 4)
-    if (service.checked) {
-      pdf.setFillColor(BRAND.secondary)
-      pdf.rect(x + 0.5, serviceY - 2.5, 3, 3, 'F')
-    }
-    // Label
-    pdf.text(service.label, x + 6, serviceY)
+  pdf.text('DESCRIPTION OF GOODS', margin + 3, currentY + 6)
+  
+  // Table columns
+  const tableY = currentY + 8
+  const colWidths = [15, 20, 80, 25, 35] // No, Type, Description, Weight, Dimensions
+  const tableHeaders = ['No.', 'Type', 'Description', 'Weight', 'Dimensions']
+  
+  // Header row
+  pdf.setFillColor(240, 240, 240)
+  pdf.rect(margin, tableY, descWidth, 7, 'F')
+  
+  let colX = margin + 2
+  pdf.setFontSize(8)
+  tableHeaders.forEach((header, idx) => {
+    pdf.setTextColor(COLORS.secondary)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text(header, colX, tableY + 5)
+    colX += colWidths[idx]
+  })
+  
+  // Table data rows
+  const items = data.items || data.waybillItems || []
+  let rowY = tableY + 7
+  
+  if (items.length === 0) {
+    // Empty row
+    pdf.setTextColor(COLORS.textLight)
+    pdf.setFont('helvetica', 'italic')
+    pdf.setFontSize(9)
+    pdf.text('No items added', margin + 5, rowY + 8)
+  } else {
+    items.slice(0, 4).forEach((item: any, index: number) => {
+      if (index > 0) {
+        pdf.setDrawColor(COLORS.border)
+        pdf.setLineWidth(0.3)
+        pdf.line(margin, rowY, margin + descWidth, rowY)
+      }
+      
+      pdf.setTextColor(COLORS.textDark)
+      pdf.setFont('courier', 'bold')
+      pdf.setFontSize(8)
+      
+      let cellX = margin + 2
+      
+      // No. of Pcs
+      const noOfPcs = item.noOfPcs || item.pieces || item.quantity || 1
+      pdf.text(String(noOfPcs), cellX + 2, rowY + 5)
+      cellX += colWidths[0]
+      
+      // Type
+      const typeOfPkg = item.typeOfPkg || 'Box'
+      pdf.text(typeOfPkg, cellX, rowY + 5)
+      cellX += colWidths[1]
+      
+      // Description
+      const desc = item.description || item.cargoDescription || data.contents || 'N/A'
+      const displayDesc = desc.length > 35 ? desc.substring(0, 35) + '...' : desc
+      pdf.text(displayDesc, cellX, rowY + 5)
+      cellX += colWidths[2]
+      
+      // Weight
+      const weight = item.grossWeight || item.weight || 0
+      pdf.text(`${weight} kg`, cellX + 2, rowY + 5)
+      cellX += colWidths[3]
+      
+      // Dimensions
+      const dims = item.dimensions || {}
+      const dimText = `${dims.length || 0}×${dims.width || 0}×${dims.height || 0}`
+      pdf.text(dimText, cellX, rowY + 5)
+      
+      rowY += 10
+    })
+  }
+  
+  // Vertical lines for table columns
+  let lineX = margin
+  colWidths.forEach((width) => {
+    lineX += width
+    pdf.setDrawColor(COLORS.border)
+    pdf.setLineWidth(0.3)
+    pdf.line(lineX, tableY, lineX, currentY + row2Height)
   })
 
-  currentY += 25
-
-  // ========== SECTION 6: DATES ==========
-  drawGridBox(
-    margin,
-    currentY,
-    contentWidth,
-    20,
-    '6. DATES',
-    [
-      `Date of Departure: ${data.departureDate} | Arrival Date: ${data.arrivalDate}`,
-    ]
-  )
-
-  currentY += 25
-
-  // ========== QR CODE ==========
-  // Generate QR code linking to track page
-  const trackUrl = `${window.location.origin}/track/${data.consignmentNumber}`
-  const qrDataUrl = await QRCode.toDataURL(trackUrl, { width: 128, margin: 2 })
+  // Charges & Fees Box (right side)
+  const chargesX = margin + descWidth + 5
+  pdf.setDrawColor(COLORS.border)
+  pdf.setLineWidth(0.5)
+  pdf.rect(chargesX, currentY, chargesWidth, row2Height)
   
-  // Add QR code
-  pdf.addImage(qrDataUrl, 'PNG', margin, currentY, 25, 25)
-  
-  // QR code label
-  pdf.setTextColor(BRAND.text)
-  pdf.setFont('helvetica', 'normal')
-  pdf.setFontSize(8)
-  pdf.text('Scan to Track', margin + 5, currentY + 28)
-
-  // ========== STAMPS ==========
-  const stampY = currentY + 5
-
-  // "Original" circular red stamp (Bottom Right)
-  pdf.setDrawColor(BRAND.red)
-  pdf.setLineWidth(2)
-  pdf.circle(pageWidth - margin - 25, stampY + 10, 15)
-  
-  pdf.setTextColor(BRAND.red)
+  // Charges header
+  pdf.setFillColor(COLORS.primary)
+  pdf.rect(chargesX, currentY, chargesWidth, 8, 'F')
+  pdf.setTextColor(COLORS.secondary)
   pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(10)
-  pdf.text('ORIGINAL', pageWidth - margin - 35, stampY + 8)
-  pdf.setFontSize(8)
-  pdf.text('SKYDEX', pageWidth - margin - 32, stampY + 14)
-
-  // "Skyship Logistics & Shipping" rectangular stamp (Bottom Center)
-  const rectX = pageWidth / 2 - 30
-  pdf.setDrawColor(BRAND.red)
-  pdf.setLineWidth(1.5)
-  pdf.rect(rectX, stampY, 60, 20)
+  pdf.setFontSize(9)
+  pdf.text('CHARGES & FEES (USD)', chargesX + 3, currentY + 6)
   
-  pdf.setTextColor(BRAND.red)
+  // Calculate charges
+  const totalWeight = items.reduce((sum: number, item: any) => sum + (item.grossWeight || item.weight || 0), 0)
+  const baseFreight = data.baseFreight || Math.round((totalWeight * 2.5) * 100) / 100
+  const insurance = data.insurance || Math.round((totalWeight * 0.8) * 100) / 100
+  const tax = data.airportTaxVat || Math.round((totalWeight * 0.5 + 5) * 100) / 100
+  const duty = data.destinationDuty || Math.round((totalWeight * 0.6) * 100) / 100
+  const total = Math.round((baseFreight + insurance + tax + duty) * 100) / 100
+  
+  // Charges list
+  const charges = [
+    { label: 'Base Freight:', value: `$${baseFreight.toFixed(2)}` },
+    { label: 'Insurance:', value: `$${insurance.toFixed(2)}` },
+    { label: 'Airport Tax/VAT:', value: `$${tax.toFixed(2)}` },
+    { label: 'Dest. Duty:', value: `$${duty.toFixed(2)}` },
+  ]
+  
+  let chargeY = currentY + 15
+  pdf.setFontSize(9)
+  
+  charges.forEach(charge => {
+    pdf.setTextColor(COLORS.textLight)
+    pdf.setFont('helvetica', 'bold')
+    pdf.text(charge.label, chargesX + 5, chargeY)
+    
+    pdf.setTextColor(COLORS.textDark)
+    pdf.setFont('courier', 'bold')
+    pdf.text(charge.value, chargesX + chargesWidth - 5, chargeY, { align: 'right' })
+    
+    chargeY += 8
+  })
+  
+  // Total line
+  pdf.setDrawColor(COLORS.secondary)
+  pdf.setLineWidth(0.5)
+  pdf.line(chargesX + 5, chargeY, chargesX + chargesWidth - 5, chargeY)
+  
+  pdf.setTextColor(COLORS.secondary)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(11)
+  pdf.text('TOTAL:', chargesX + 5, chargeY + 6)
+  
+  pdf.setFont('courier', 'bold')
+  pdf.setFontSize(12)
+  pdf.text(`$${total.toFixed(2)}`, chargesX + chargesWidth - 5, chargeY + 6, { align: 'right' })
+
+  currentY += row2Height + 5
+
+  // ========== ROW 3: Shipment Total | Note | Terms ==========
+  const row3Height = 30
+  const thirdWidth = (contentWidth - 10) / 3
+
+  // Shipment Totals (Left)
+  pdf.setDrawColor(COLORS.border)
+  pdf.setLineWidth(0.5)
+  pdf.rect(margin, currentY, thirdWidth, row3Height)
+  
+  pdf.setFillColor(COLORS.primary)
+  pdf.rect(margin, currentY, thirdWidth, 7, 'F')
+  pdf.setTextColor(COLORS.secondary)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(9)
+  pdf.text('SHIPMENT TOTALS', margin + 3, currentY + 5)
+  
+  const totalPieces = items.reduce((sum: number, item: any) => sum + (item.noOfPcs || item.pieces || item.quantity || 1), 0)
+  
+  pdf.setTextColor(COLORS.textLight)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(9)
+  pdf.text(`Total Pieces: ${totalPieces}`, margin + 5, currentY + 14)
+  pdf.text(`Total Weight: ${totalWeight.toFixed(2)} KG`, margin + 5, currentY + 21)
+
+  // NOTE Box (Center) - Special Instructions/Handling
+  const noteX = margin + thirdWidth + 5
+  pdf.setDrawColor(COLORS.border)
+  pdf.setLineWidth(0.5)
+  pdf.rect(noteX, currentY, thirdWidth, row3Height)
+  
+  pdf.setFillColor(COLORS.primary)
+  pdf.rect(noteX, currentY, thirdWidth, 7, 'F')
+  pdf.setTextColor(COLORS.secondary)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(9)
+  pdf.text('NOTE', noteX + 3, currentY + 5)
+  
+  const handlingText = data.handlingInformation || data.specialInstructions || 'No special handling required'
+  pdf.setTextColor(COLORS.textDark)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(7)
+  const splitHandling = pdf.splitTextToSize(handlingText, thirdWidth - 6)
+  pdf.text(splitHandling, noteX + 3, currentY + 12)
+  
+  // Dangerous goods checkbox in NOTE box
+  const checkboxY = currentY + row3Height - 6
+  pdf.setDrawColor(COLORS.secondary)
+  pdf.setLineWidth(0.5)
+  pdf.rect(noteX + 3, checkboxY, 3, 3)
+  
+  if (data.isDangerousGoods) {
+    pdf.setTextColor(COLORS.secondary)
+    pdf.setFont('helvetica', 'bold')
+    pdf.setFontSize(7)
+    pdf.text('✓', noteX + 4, checkboxY + 2)
+  }
+  
+  pdf.setTextColor(COLORS.textLight)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(7)
+  pdf.text('DANGEROUS GOODS', noteX + 9, checkboxY + 2)
+
+  // TERMS AND CONDITIONS Box (Right)
+  const termsX = margin + thirdWidth * 2 + 10
+  pdf.setDrawColor(COLORS.border)
+  pdf.setLineWidth(0.5)
+  pdf.rect(termsX, currentY, thirdWidth, row3Height)
+  
+  pdf.setFillColor(COLORS.primary)
+  pdf.rect(termsX, currentY, thirdWidth, 7, 'F')
+  pdf.setTextColor(COLORS.secondary)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(8)
-  pdf.text('SKYDEX LOGISTICS', rectX + 5, stampY + 7)
-  pdf.text('& SHIPPING', rectX + 15, stampY + 13)
-  pdf.setFont('helvetica', 'normal')
+  pdf.text('TERMS AND CONDITIONS', termsX + 3, currentY + 5)
+  
+  // Terms text as specified by user
+  const termsBoxText = 'Received in apparent good order unless otherwise noted. Subject to the terms and conditions of the Carrier\'s Service Guide. Liability is limited as per the back of this document or applicable law. All claims for loss or damage must be filed within 14 days.'
+  pdf.setTextColor(COLORS.textDark)
+  pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(6)
-  pdf.text('AUTHORIZED', rectX + 18, stampY + 17)
+  const splitTermsBox = pdf.splitTextToSize(termsBoxText, thirdWidth - 6)
+  pdf.text(splitTermsBox, termsX + 3, currentY + 11)
 
-  currentY += 35
+  currentY += row3Height + 5
 
-  // ========== SIGNATURES ==========
-  pdf.setDrawColor(0)
+  // ========== ROW 4: Signatures | Terms ==========
+  const row4Height = 30
+  const sigColWidth = (contentWidth - 10) / 3
+
+  // Shipper Signature
+  pdf.setDrawColor(COLORS.border)
   pdf.setLineWidth(0.5)
-  pdf.rect(margin, currentY, contentWidth, 30)
-
-  // Title
-  pdf.setFillColor(BRAND.primary)
-  pdf.rect(margin, currentY, contentWidth, 8, 'F')
-  pdf.setTextColor(BRAND.white)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(10)
-  pdf.text('7. AUTHORIZATIONS', margin + 2, currentY + 5.5)
-
-  // Signature lines
-  const sigY = currentY + 20
-  pdf.setDrawColor(BRAND.text)
-  pdf.setLineWidth(0.5)
+  pdf.rect(margin, currentY, sigColWidth, row4Height)
   
-  // Sender signature
-  pdf.line(margin + 5, sigY, margin + 60, sigY)
-  pdf.setTextColor(BRAND.text)
-  pdf.setFont('helvetica', 'normal')
+  pdf.setFillColor(COLORS.primary)
+  pdf.rect(margin, currentY, sigColWidth, 7, 'F')
+  pdf.setTextColor(COLORS.secondary)
+  pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(8)
-  pdf.text('Sender Signature', margin + 5, sigY + 4)
+  pdf.text('SHIPPER SIGNATURE', margin + 3, currentY + 5)
+  
+  // Try to add signature image - REMOVED the line that cuts across
+  const signatureImage = await loadImageAsDataURL('/SENDER\'S SIGNATURE.png')
+  if (signatureImage) {
+    try {
+      pdf.addImage(signatureImage, 'PNG', margin + 5, currentY + 10, sigColWidth - 10, 12)
+    } catch (e) {
+      console.error('Failed to add signature image:', e)
+    }
+  } else {
+    // REMOVED: pdf.line(margin + 10, currentY + 20, margin + sigColWidth - 10, currentY + 20)
+    pdf.setTextColor(COLORS.textLight)
+    pdf.setFont('helvetica', 'italic')
+    pdf.setFontSize(8)
+    pdf.text('[Signature]', margin + sigColWidth/2 - 8, currentY + 20)
+  }
 
-  // Official signature
-  pdf.line(margin + 80, sigY, margin + 135, sigY)
-  pdf.text('Authorized Official', margin + 80, sigY + 4)
+  // Carrier Agent - with FIATA Logo and Terms Text
+  pdf.setDrawColor(COLORS.border)
+  pdf.setLineWidth(0.5)
+  pdf.rect(margin + sigColWidth + 5, currentY, sigColWidth, row4Height)
+  
+  pdf.setFillColor(COLORS.primary)
+  pdf.rect(margin + sigColWidth + 5, currentY, sigColWidth, 7, 'F')
+  pdf.setTextColor(COLORS.secondary)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(8)
+  pdf.text('CARRIER AUTHORIZED AGENT', margin + sigColWidth + 8, currentY + 5)
+  
+  // Add FIATA Logo inside the carrier agent box - SHIFTED TO THE RIGHT
+  const fiataImage = await loadImageAsDataURL('/FIATA LOGO RESIZED.png')
+  if (fiataImage) {
+    try {
+      // Position FIATA logo shifted to the right within the box
+      const fiataWidth = 22  // Slightly reduced width
+      const fiataHeight = 16 // Slightly reduced height
+      const fiataX = margin + sigColWidth + 5 + (sigColWidth - fiataWidth) * 0.65  // Shifted to the right (65% from left)
+      const fiataY = currentY + 9  // Position below header
+      pdf.addImage(fiataImage, 'PNG', fiataX, fiataY, fiataWidth, fiataHeight)
+    } catch (e) {
+      console.error('Failed to add FIATA logo:', e)
+    }
+  }
+  
+  // Add FIATA terms text - MOVED UP higher in the box
+  pdf.setTextColor(COLORS.textDark)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(7) // Slightly larger font since we moved it up
+  const fiataText = 'I/WE AGREE THAT FIATA STANDARD TERMS APPLY TO SHIPMENT'
+  const splitFiataText = pdf.splitTextToSize(fiataText, sigColWidth - 8)
+  pdf.text(splitFiataText, margin + sigColWidth + 8, currentY + 22)
 
   // Date
-  pdf.line(margin + 155, sigY, margin + 195, sigY)
-  pdf.text('Date', margin + 155, sigY + 4)
-
-  // Add uploaded signatures if available
-  if (data.senderSignatureUrl) {
-    try {
-      pdf.addImage(data.senderSignatureUrl, 'PNG', margin + 5, sigY - 15, 55, 15)
-    } catch (e) {
-      // Ignore if image fails to load
-    }
-  }
-
-  if (data.officialStampUrl) {
-    try {
-      pdf.addImage(data.officialStampUrl, 'PNG', margin + 80, sigY - 15, 55, 15)
-    } catch (e) {
-      // Ignore if image fails to load
-    }
-  }
-
-  // ========== FOOTER ==========
-  const footerY = pageHeight - 15
-  pdf.setDrawColor(BRAND.primary)
-  pdf.setLineWidth(2)
-  pdf.line(0, footerY - 5, pageWidth, footerY - 5)
-
-  pdf.setTextColor(BRAND.text)
-  pdf.setFont('helvetica', 'normal')
+  pdf.setDrawColor(COLORS.border)
+  pdf.setLineWidth(0.5)
+  pdf.rect(margin + sigColWidth * 2 + 10, currentY, sigColWidth, row4Height)
+  
+  pdf.setFillColor(COLORS.primary)
+  pdf.rect(margin + sigColWidth * 2 + 10, currentY, sigColWidth, 7, 'F')
+  pdf.setTextColor(COLORS.secondary)
+  pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(8)
-  pdf.text('© 2026 SKYDEX Logistics. All rights reserved.', margin, footerY)
-  pdf.text('For tracking, visit: skydex.com/track', pageWidth - margin, footerY, { align: 'right' })
+  pdf.text('DATE', margin + sigColWidth * 2 + 13, currentY + 5)
+  
+  const currentDate = new Date().toISOString().split('T')[0]
+  pdf.setTextColor(COLORS.textDark)
+  pdf.setFont('courier', 'bold')
+  pdf.setFontSize(10)
+  pdf.text(currentDate, margin + sigColWidth * 2 + 15, currentY + 20)
+
+  // Terms & Conditions (full width below signatures)
+  const termsY = currentY + row4Height + 3
+  pdf.setDrawColor(COLORS.border)
+  pdf.setLineWidth(0.5)
+  pdf.rect(margin, termsY, contentWidth, 12)
+  
+  pdf.setFillColor(240, 240, 240)
+  pdf.rect(margin, termsY, contentWidth, 6, 'F')
+  pdf.setTextColor(COLORS.secondary)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(7)
+  pdf.text('TERMS & CONDITIONS', margin + 3, termsY + 4)
+  
+  const termsText = data.termsAndConditions || 'Received in apparent good order unless otherwise noted. Subject to the terms and conditions of the Carrier\'s Service Guide. Liability is limited as per applicable law.'
+  pdf.setTextColor(COLORS.textDark)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(7)
+  const splitTerms = pdf.splitTextToSize(termsText, contentWidth - 6)
+  pdf.text(splitTerms, margin + 3, termsY + 9)
+
+  // Footer - REMOVED BLUE LINE that was cutting across signature boxes
+  const footerY = pageHeight - 6
+  
+  // Only show copyright text without the blue line
+  pdf.setTextColor(COLORS.secondary)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(8)
+  pdf.text('© 2026 Skyship Logistics. All rights reserved.', margin, footerY)
+  
+  pdf.setTextColor(COLORS.textLight)
+  pdf.text('For tracking: skyshiplogistics.com/track', pageWidth - margin, footerY, { align: 'right' })
 
   // Generate PDF blob and URL
   const pdfBlob = pdf.output('blob')
@@ -383,7 +674,7 @@ export function WaybillTemplate({ data, onComplete }: WaybillTemplateProps) {
       // Auto-download
       const link = document.createElement('a')
       link.href = pdfUrl
-      link.download = `waybill_${data.consignmentNumber}.pdf`
+      link.download = `waybill_${data.waybillNumber || data.consignmentNumber}.pdf`
       link.click()
     } catch (error) {
       console.error('Error generating waybill PDF:', error)

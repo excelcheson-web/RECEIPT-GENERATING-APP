@@ -36,7 +36,7 @@ export default function StaffLoginPage() {
             <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-lg shadow-blue-500/30">
               <Image
                 src="/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png"
-                alt="SKYDEX Logo"
+                alt="Skyship Logo"
                 fill
                 className="object-cover"
                 sizes="80px"
@@ -45,7 +45,7 @@ export default function StaffLoginPage() {
             </div>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-wider mb-1">
-            SKYDEX STAFF
+            Skyship STAFF
           </h1>
           <p className="text-white/60 text-sm tracking-wide">
             Secure Employee Portal
@@ -144,7 +144,7 @@ export default function StaffLoginPage() {
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
-          Return to SKYDEX
+          Return to Skyship
         </Link>
       </div>
     </div>

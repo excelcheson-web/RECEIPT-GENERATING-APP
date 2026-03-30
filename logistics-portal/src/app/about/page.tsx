@@ -161,7 +161,7 @@ export default function AboutPage() {
             <div className="relative w-10 h-10 rounded-xl overflow-hidden">
               <Image
                 src="/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png"
-                alt="SKYDEX Logo"
+                alt="Skyship Logo"
                 fill
                 className="object-cover"
                 sizes="40px"
@@ -169,7 +169,7 @@ export default function AboutPage() {
               />
             </div>
             <span className="text-xl font-bold text-white text-high-contrast hidden sm:block">
-              SKYDEX
+              Skyship
             </span>
           </Link>
 
@@ -202,7 +202,7 @@ export default function AboutPage() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white text-high-contrast mb-6 tracking-tight">
-              About SKYDEX
+              About Skyship
             </h1>
             <div className="w-24 h-1 bg-gradient-to-r from-orange-400 to-blue-500 mx-auto rounded-full"></div>
           </div>
@@ -214,7 +214,7 @@ export default function AboutPage() {
               Our Vision: Transparent Global Connectivity
             </h2>
             <p className="text-white/80 text-lg leading-relaxed">
-              At SKYDEX, we believe that moving cargo should be as seamless as a clear sky. 
+              At Skyship, we believe that moving cargo should be as seamless as a clear sky.
               In an increasingly complex world, we provide a "glass-box" approach to logistics—where 
               every movement is visible, every milestone is tracked, and every client is empowered with 
               real-time data. We aren&apos;t just moving parcels; we are bridging the gap between global 
@@ -229,18 +229,18 @@ export default function AboutPage() {
               Who We Are
             </h2>
             <p className="text-white/80 text-lg leading-relaxed">
-              Founded on the principles of precision, speed, and integrity, SKYDEX has grown 
+              Founded on the principles of precision, speed, and integrity, Skyship has grown
               into a premier international freight and supply chain partner. From the intricate requirements 
               of Air and Ocean Freight to the ground-level reliability of Road Freight and Warehousing, 
               our infrastructure is built to handle the world&apos;s most demanding cargo.
             </p>
           </div>
 
-          {/* Why Choose SKYDEX Section */}
+          {/* Why Choose Skyship Section */}
           <div className="glass-panel p-8 sm:p-12 mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 flex items-center gap-3">
               <StarIcon />
-              Why Choose SKYDEX?
+              Why Choose Skyship?
             </h2>
             <div className="grid sm:grid-cols-2 gap-6">
               <div className="flex items-start gap-4">
@@ -319,13 +319,13 @@ export default function AboutPage() {
                 <div className="relative w-10 h-10 rounded-xl overflow-hidden">
                   <Image
                     src="/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png"
-                    alt="SKYDEX Logo"
+                    alt="Skyship Logo"
                     fill
                     className="object-cover"
                     sizes="40px"
                   />
                 </div>
-                <span className="text-xl font-bold text-white">SKYDEX</span>
+                <span className="text-xl font-bold text-white">Skyship</span>
               </div>
               <p className="text-white/60 text-sm">
                 Transparent Global Connectivity for your cargo needs.
@@ -355,7 +355,7 @@ export default function AboutPage() {
             <div>
               <h4 className="text-white font-semibold mb-4">Contact</h4>
               <ul className="space-y-2 text-white/60 text-sm">
-                <li className="flex items-center"><MailIcon /> contact@skydexlogistics.com</li>
+                <li className="flex items-center"><MailIcon /> contact@skyshiplogistics.com</li>
                 <li className="flex items-center"><PhoneIcon /> +44 7935 244329</li>
                 <li className="flex items-center"><MapPinIcon /> GOLDEN CROSS HOUSE, 456-458 STRAND</li>
               </ul>
@@ -363,7 +363,7 @@ export default function AboutPage() {
           </div>
           <div className="border-t border-white/10 pt-8 text-center">
             <p className="text-white/50 text-sm">
-              © 2026 SKYDEX Logistics. All rights reserved.
+              © 2026 Skyship Logistics. All rights reserved.
             </p>
           </div>
         </div>

@@ -56,54 +56,290 @@ export interface Waybill {
   requiresSignature: boolean;
 }
 
-// New comprehensive waybill form data interface
-export interface WaybillFormData {
-  // 1. From (Sender)
-  senderAccountNo: string;
-  senderName: string;
-  senderAddress: string;
-  
-  // 2. To (Receiver)
-  receiverName: string;
-  receiverAddress: string;
-  receiverTelephone: string; // +63 country code for Philippines
-  
-  // 3. Shipment Specs
-  pieces: number;
-  weight: number;
+// Dimensions table item for waybill
+export interface WaybillItem {
+  noOfPcs: number;
+  typeOfPkg: 'Box' | 'Pallet' | 'Carton' | 'Crate' | 'Bag' | 'Other';
+  description: string;
+  grossWeight: number; // in KG
   dimensions: {
     length: number;
     width: number;
     height: number;
+  }; // in CM
+}
+
+// Smart Defaults - Auto-generated system data
+export interface SmartDefaults {
+  // System Generated Identifiers
+  waybillNumber: string;
+  trackingNumber: string;
+  consignmentNumber: string;
+  
+  // Auto-filled Dates
+  dateOfIssue: string;
+  departureDate: string;
+  estimatedArrivalDate: string;
+  
+  // Auto-filled Carrier Info
+  issuingCarrier: string;
+  carrierReference: string;
+  iataCode: string;
+  agentName: string;
+  agentCity: string;
+  
+  // Auto-filled Location Info
+  airportOfDeparture: string;
+  airportOfDepartureCode: string;
+  airportOfDestination: string;
+  airportOfDestinationCode: string;
+  
+  // Auto-filled Service Info
+  serviceType: string;
+  transportMode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR';
+  currency: string;
+  
+  // Auto-filled Terms
+  termsAndConditions: string;
+  handlingInformation: string;
+  
+  // System Metadata
+  createdAt: string;
+  status: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED';
+}
+
+// User Input Only - Fields that require manual entry
+export interface UserInputFields {
+  // Shipper Information (REQUIRED)
+  shipperName: string;
+  shipperAddress: string;
+  shipperPhone: string;
+  shipperEmail?: string;
+  
+  // Consignee Information (REQUIRED)
+  consigneeName: string;
+  consigneeAddress: string;
+  consigneePhone: string;
+  consigneeEmail?: string;
+  
+  // Package Information (REQUIRED) - Description of Goods
+  cargoDescription: string;  // Matches PDF output "Description of Goods"
+  contents: string;           // Alias for cargoDescription
+  totalWeight: number;
+  totalPieces: number;        // Changed from numberOfPieces to match output
+  
+  // Line Items (Multiple packages)
+  lineItems: {
+    description: string;
+    pieces: number;
+    weight: number;
+    type: 'Box' | 'Pallet' | 'Carton' | 'Crate' | 'Bag' | 'Other';
+    dimensions?: {
+      length: number;
+      width: number;
+      height: number;
+    };
+  }[];
+  
+  // Optional Enhancements
+  isFragile: boolean;
+  isExpress: boolean;
+  isDangerousGoods: boolean;  // For dangerous goods checkbox
+  specialInstructions?: string;
+  
+  // Charges & Fees (NEW - Added to match PDF output)
+  baseFreight: number;      // Base freight charge
+  insurance: number;        // Insurance charge
+  airportTaxVat: number;    // Airport tax/VAT
+  destinationDuty: number;  // Destination duty
+  
+  // Optional Override (user can change auto-filled values if needed)
+  destinationOverride?: string;
+  departureDateOverride?: string;
+  
+  // Routing Information (Optional - can be set via country dropdowns)
+  portOfDeparture?: string;
+  portOfDestination?: string;
+  
+  // Additional Fields for PDF Output
+  receiverCity?: string;
+  routeNumber?: string;
+}
+
+// Waybill form data interface - PRIMARY (flexible for both legacy and new usage)
+export interface WaybillFormData {
+  // === CORE IDENTIFIERS (Auto-generated) ===
+  waybillNumber?: string;
+  trackingNumber?: string;
+  consignmentNumber?: string;
+  
+  // === SENDER INFORMATION (User Input) ===
+  senderAccountNo?: string;
+  senderName?: string;
+  senderAddress?: string;
+  senderPhone?: string;
+  shipperName?: string;
+  shipperAddress?: string;
+  shipperPhone?: string;
+  shipperEmail?: string;
+  
+  // === RECEIVER INFORMATION (User Input) ===
+  receiverName?: string;
+  receiverAddress?: string;
+  receiverTelephone?: string;
+  receiverPhone?: string;
+  receiverCity?: string;
+  consigneeName?: string;
+  consigneeAddress?: string;
+  consigneePhone?: string;
+  consigneeEmail?: string;
+  
+  // === PACKAGE INFORMATION (User Input) ===
+  packageDescription?: string;
+  contents?: string;
+  totalWeight?: number;
+  weight?: number;
+  numberOfPieces?: number;
+  pieces?: number;
+  isFragile?: boolean;
+  isExpress?: boolean;
+  specialInstructions?: string;
+  
+  // === LOGISTICS INFORMATION (Auto-filled / User Override) ===
+  accountNumber?: string;
+  carrierReference?: string;
+  transportMode?: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR';
+  issuingCarrier?: string;
+  iataCode?: string;
+  agentName?: string;
+  agentCity?: string;
+  
+  // === ROUTING INFORMATION (Auto-filled / User Override) ===
+  portOfDeparture?: string;
+  portOfDestination?: string;
+  airportOfDeparture?: string;
+  airportOfDestination?: string;
+  routeNumber?: string;
+  toCode?: string;
+  byFirstCarrier?: string;
+  firstCarrier?: string;
+  routing?: string;
+  flightNumber?: string;
+  
+  // === DATES (Auto-filled / User Override) ===
+  departureDate?: string;
+  arrivalDate?: string;
+  dateOfIssue?: string;
+  estimatedArrivalDate?: string;
+  estimatedDeliveryDate?: string;
+  createdAt?: string;
+  
+  // === SERVICE TYPE (Legacy structure) ===
+  serviceType?: {
+    diplomaticCourier: boolean;
+    domestic: boolean;
+    worldMail: boolean;
+    repairReturn: boolean;
+    doorToDoor: boolean;
   };
-  contents: string; // defaults to 'Personal Effects'
+  serviceTypeString?: string;
   
-  // 4. Financials
-  insurance: number;
-  airportTaxVat: number;
-  destinationDuty: number;
-  baseFreight: number;
-  currencyTotal: number; // Auto-calculated
+  // === DIMENSIONS TABLE (Legacy) ===
+  items?: WaybillItem[];
+  totalPieces?: number;
+  totalGrossWeight?: number;
   
-  // 5. Service Type
+  // === FINANCIALS ===
+  currency?: string;
+  insurance?: number;
+  airportTaxVat?: number;
+  destinationDuty?: number;
+  baseFreight?: number;
+  currencyTotal?: number;
+  
+  // === HANDLING INFORMATION ===
+  handlingInformation?: string;
+  isDangerousGoods?: boolean;
+  dangerousGoodsDetails?: string;
+  termsAndConditions?: string;
+  
+  // === SIGNATURES ===
+  senderSignatureUrl?: string;
+  officialStampUrl?: string;
+  
+  // === COMPANY LOGO ===
+  logoUrl?: string;
+  senderLogoUrl?: string;
+  
+  // === TRACKING INTEGRATION ===
+  status?: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED';
+  currentLocation?: string;
+  transitHistory?: TransitEvent[];
+  
+  // === LEGACY COMPATIBILITY ===
+  // Allow any additional fields for backward compatibility
+  [key: string]: any;
+}
+
+// Legacy waybill form data interface - FOR TYPE SAFETY IN LEGACY COMPONENTS
+export interface LegacyWaybillFormData extends Required<Pick<WaybillFormData, 
+  'senderAccountNo' | 'senderName' | 'senderAddress' |
+  'receiverName' | 'receiverAddress' | 'receiverTelephone' |
+  'waybillNumber' | 'accountNumber' | 'carrierReference' | 'transportMode' |
+  'portOfDeparture' | 'portOfDestination' | 'routeNumber' |
+  'items' | 'totalPieces' | 'totalGrossWeight' |
+  'departureDate' | 'arrivalDate' | 'serviceType' |
+  'senderSignatureUrl' | 'officialStampUrl' | 'consignmentNumber' | 'createdAt'
+>> {
   serviceType: {
     diplomaticCourier: boolean;
     domestic: boolean;
     worldMail: boolean;
     repairReturn: boolean;
+    doorToDoor: boolean;
+  };
+}
+
+// Transit event for tracking
+export interface TransitEvent {
+  date: string;
+  location: string;
+  status: string;
+  description: string;
+}
+
+// Simplified Waybill Data for Admin Dashboard
+export interface SimplifiedWaybillData {
+  // User Input Only
+  shipper: {
+    name: string;
+    address: string;
+    phone: string;
+  };
+  consignee: {
+    name: string;
+    address: string;
+    phone: string;
+  };
+  package: {
+    description: string;
+    weight: number;
+    pieces: number;
+    isFragile: boolean;
+    isExpress: boolean;
   };
   
-  // 6. Dates
-  departureDate: string;
-  arrivalDate: string;
+  // System Generated (Auto-filled)
+  waybillNumber: string;
+  trackingNumber: string;
+  date: string;
+  carrier: string;
+  origin: string;
+  destination: string;
+  estimatedDelivery: string;
   
-  // 7. Signatures
-  senderSignatureUrl: string;
-  officialStampUrl: string;
-  
-  // System generated
-  consignmentNumber: string; // SKY-2026-XXXX format
-  createdAt: string;
+  // Optional
+  specialInstructions?: string;
 }
 
 export interface DocumentConfig {

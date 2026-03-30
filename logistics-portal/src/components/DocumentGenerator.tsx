@@ -84,7 +84,7 @@ export function DocumentGenerator({ data }: Props) {
 
       // QR Code bottom right - Waybill only
       const trackingId = data.trackingNumber || generateTrackingId()
-      const qrData = `Tracking ID: ${trackingId} | Authenticated by SKYDEX System`
+      const qrData = `Tracking ID: ${trackingId} | Authenticated by Skyship Logistics System`
       try {
         const qrDataUrl = await QRCode.toDataURL(qrData, { width: 128 })
         pdf.addImage(qrDataUrl, 'PNG', A4_WIDTH - 45, A4_HEIGHT - 45, 30, 30)

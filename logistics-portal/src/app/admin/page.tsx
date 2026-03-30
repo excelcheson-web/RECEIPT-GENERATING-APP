@@ -1,15 +1,14 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import { generateTrackingNumber } from '@/lib/utils'
-import type { DocumentConfig, WaybillFormData } from '@/lib/types'
+import type { DocumentConfig } from '@/lib/types'
 import { GREENHILLS_CONFIG, SKYSHIP_CONFIG, generateTrackingId } from '@/lib/constants'
 import { generateDocumentPDF } from '@/components/DocumentTemplate'
-import { WaybillForm } from '@/components/WaybillForm'
-import { generateWaybillPDF } from '@/components/WaybillTemplate'
+import SmartWaybillForm from '@/components/SmartWaybillForm'
 import jsPDF from 'jspdf'
 
-interface Item {
+// Receipt item interface
+interface ReceiptItem {
   description: string
   quantity: number
   unitPrice?: number
@@ -19,7 +18,7 @@ interface FormData {
   companyName: string
   logoUrl: string
   type: 'RECEIPT' | 'WAYBILL'
-  items: Item[]
+  items: ReceiptItem[]
   origin: string
   destination: string
   companyAddress: string
@@ -39,7 +38,6 @@ interface FormData {
 
 export default function AdminPage() {
   const [type, setType] = useState<'RECEIPT' | 'WAYBILL'>('RECEIPT')
-  const [waybillMode, setWaybillMode] = useState<'SIMPLE' | 'COMPREHENSIVE'>('SIMPLE')
   const [companyName, setCompanyName] = useState('Greenhills Chemical Incorporation')
   const [logoUrl, setLogoUrl] = useState('')
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
@@ -50,7 +48,7 @@ export default function AdminPage() {
   const [origin, setOrigin] = useState('')
   const [destination, setDestination] = useState('')
   const [taxRate, setTaxRate] = useState(16)
-  const [items, setItems] = useState<Item[]>([])
+  const [items, setItems] = useState<ReceiptItem[]>([])
   const [generated, setGenerated] = useState<DocumentConfig[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -71,7 +69,7 @@ export default function AdminPage() {
     setItems(prev => [...prev, {description: '', quantity: 1, unitPrice: 0}])
   }, [])
 
-  const updateItem = useCallback((index: number, field: keyof Item, value: string | number) => {
+  const updateItem = useCallback((index: number, field: keyof ReceiptItem, value: string | number) => {
     setItems(prev => prev.map((item, i) => i === index ? {...item, [field]: value} : item))
   }, [])
 
@@ -275,31 +273,6 @@ export default function AdminPage() {
               </button>
             </div>
             
-            {/* Waybill Mode Toggle - Only show when WAYBILL is selected */}
-            {type === 'WAYBILL' && (
-              <div className="flex gap-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-xl">
-                <button
-                  onClick={() => setWaybillMode('SIMPLE')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    waybillMode === 'SIMPLE'
-                      ? 'bg-white dark:bg-gray-700 text-green-600 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
-                  }`}
-                >
-                  Simple Mode
-                </button>
-                <button
-                  onClick={() => setWaybillMode('COMPREHENSIVE')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    waybillMode === 'COMPREHENSIVE'
-                      ? 'bg-white dark:bg-gray-700 text-green-600 shadow-sm'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
-                  }`}
-                >
-                  Comprehensive Waybill
-                </button>
-              </div>
-            )}
           </div>
 
           {/* Company Info */}
@@ -377,92 +350,96 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Receipt Settings - Glassmorphism Style */}
-          <div className="mb-8 p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">📄</span>
-              Receipt Settings
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Receipt Number
-                </label>
-                <input
-                  type="text"
-                  value={receiptNumber}
-                  onChange={(e) => setReceiptNumber(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
-                  placeholder="e.g., RCP-2024-001"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Date of Issue
-                </label>
-                <input
-                  type="date"
-                  value={dateOfIssue}
-                  onChange={(e) => setDateOfIssue(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Receipt Description / Memo
-                </label>
-                <input
-                  type="text"
-                  value={receiptDescription}
-                  onChange={(e) => setReceiptDescription(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
-                  placeholder="e.g., Payment for chemical supplies - Invoice #12345"
-                />
+          {/* RECEIPT MODE: Receipt Settings - Glassmorphism Style */}
+          {type === 'RECEIPT' && (
+            <div className="mb-8 p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <span className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">📄</span>
+                Receipt Settings
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Receipt Number
+                  </label>
+                  <input
+                    type="text"
+                    value={receiptNumber}
+                    onChange={(e) => setReceiptNumber(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
+                    placeholder="e.g., RCP-2024-001"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Date of Issue
+                  </label>
+                  <input
+                    type="date"
+                    value={dateOfIssue}
+                    onChange={(e) => setDateOfIssue(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Receipt Description / Memo
+                  </label>
+                  <input
+                    type="text"
+                    value={receiptDescription}
+                    onChange={(e) => setReceiptDescription(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
+                    placeholder="e.g., Payment for chemical supplies - Invoice #12345"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Payment Details - Glassmorphism Style */}
-          <div className="mb-8 p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
-              <span className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-600 dark:text-green-400">💳</span>
-              Payment Details
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Payment Method
-                </label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value as any)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
-                >
-                  <option value="Cash">Cash</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="POS">POS</option>
-                  <option value="Credit Card">Credit Card</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Currency
-                </label>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value as any)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
-                >
-                  <option value="USD">USD - US Dollar</option>
-                  <option value="EUR">EUR - Euro</option>
-                  <option value="GBP">GBP - British Pound</option>
-                  <option value="NGN">NGN - Nigerian Naira</option>
-                  <option value="KES">KES - Kenyan Shilling</option>
-                  <option value="GHS">GHS - Ghanaian Cedi</option>
-                </select>
+          {/* RECEIPT MODE: Payment Details - Glassmorphism Style */}
+          {type === 'RECEIPT' && (
+            <div className="mb-8 p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <span className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-green-600 dark:text-green-400">💳</span>
+                Payment Details
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Payment Method
+                  </label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value as any)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
+                  >
+                    <option value="Cash">Cash</option>
+                    <option value="Bank Transfer">Bank Transfer</option>
+                    <option value="POS">POS</option>
+                    <option value="Credit Card">Credit Card</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Currency
+                  </label>
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value as any)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
+                  >
+                    <option value="USD">USD - US Dollar</option>
+                    <option value="EUR">EUR - Euro</option>
+                    <option value="GBP">GBP - British Pound</option>
+                    <option value="NGN">NGN - Nigerian Naira</option>
+                    <option value="KES">KES - Kenyan Shilling</option>
+                    <option value="GHS">GHS - Ghanaian Cedi</option>
+                  </select>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Customer/Ship */}
           <div className="mb-8">
@@ -491,96 +468,96 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* WAYBILL MODE: Smart Waybill Form */}
           {type === 'WAYBILL' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div>
-                <label className="block text-sm font-medium mb-2">Origin</label>
-                <input
-                  type="text"
-                  value={origin}
-                  onChange={(e) => setOrigin(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl"
-                  placeholder="Nairobi"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Destination</label>
-                <input
-                  type="text"
-                  value={destination}
-                  onChange={(e) => setDestination(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl"
-                  placeholder="Mombasa"
-                />
-              </div>
+            <div className="mb-8">
+              <SmartWaybillForm 
+                onGenerated={(pdfUrl, waybillData) => {
+                  // Add to generated list
+                  const doc: DocumentConfig = {
+                    companyName: SKYSHIP_CONFIG.name,
+                    logoUrl: SKYSHIP_CONFIG.logo,
+                    type: 'WAYBILL',
+                    items: [],
+                    origin: waybillData.portOfDeparture || 'LAGOS/LOS',
+                    destination: waybillData.portOfDestination || 'Unknown',
+                    trackingNumber: waybillData.waybillNumber || 'N/A',
+                    status: 'PENDING',
+                    waybillData: waybillData,
+                  }
+                  setGenerated(prev => [doc, ...prev.slice(0, 4)])
+                }}
+              />
             </div>
           )}
 
-          {/* Items */}
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <label className="text-xl font-semibold text-slate-900 dark:text-slate-100">
-                Items / Goods
-              </label>
-              <button
-                onClick={addItem}
-                type="button"
-                className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
-              >
-                Add Item
-              </button>
-            </div>
-            <div className="space-y-3">
-              {items.map((item, index) => (
-                <div key={index} className="flex gap-4 items-end bg-gray-50 dark:bg-gray-900 p-4 rounded-xl">
-                  <div className="flex-1">
-                    <label className="block text-sm font-medium mb-1">Description</label>
-                    <input
-                      type="text"
-                      value={item.description}
-                      onChange={(e) => updateItem(index, 'description', e.target.value)}
-                      className="w-full px-3 py-2 border rounded-lg"
-                      placeholder="Item description"
-                    />
-                  </div>
-                  <div className="w-20">
-                    <label className="block text-sm font-medium mb-1">Qty</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                      className="w-full px-3 py-2 border rounded-lg text-center"
-                    />
-                  </div>
-                  <div className="w-24">
-                    <label className="block text-sm font-medium mb-1">Unit Price</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={item.unitPrice || ''}
-                      onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                      className="w-full px-3 py-2 border rounded-lg text-right"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <div className="w-20">
-                    <label className="block text-sm font-medium mb-1">Total</label>
-                    <div className="px-3 py-2 bg-gray-100 rounded-lg text-right font-mono">
-                      {(item.quantity * (item.unitPrice || 0)).toFixed(2)}
+          {/* RECEIPT MODE: Items Table */}
+          {type === 'RECEIPT' && (
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-4">
+                <label className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+                  Items / Goods
+                </label>
+                <button
+                  onClick={addItem}
+                  type="button"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
+                >
+                  Add Item
+                </button>
+              </div>
+              <div className="space-y-3">
+                {items.map((item, index) => (
+                  <div key={index} className="flex gap-4 items-end bg-gray-50 dark:bg-gray-900 p-4 rounded-xl">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium mb-1">Description</label>
+                      <input
+                        type="text"
+                        value={item.description}
+                        onChange={(e) => updateItem(index, 'description', e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="Item description"
+                      />
                     </div>
+                    <div className="w-20">
+                      <label className="block text-sm font-medium mb-1">Qty</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                        className="w-full px-3 py-2 border rounded-lg text-center"
+                      />
+                    </div>
+                    <div className="w-24">
+                      <label className="block text-sm font-medium mb-1">Unit Price</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={item.unitPrice || ''}
+                        onChange={(e) => updateItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border rounded-lg text-right"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="w-20">
+                      <label className="block text-sm font-medium mb-1">Total</label>
+                      <div className="px-3 py-2 bg-gray-100 rounded-lg text-right font-mono">
+                        {(item.quantity * (item.unitPrice || 0)).toFixed(2)}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeItem(index)}
+                      type="button"
+                      className="px-3 py-2 text-red-600 hover:text-red-800"
+                    >
+                      Remove
+                    </button>
                   </div>
-                  <button
-                    onClick={() => removeItem(index)}
-                    type="button"
-                    className="px-3 py-2 text-red-600 hover:text-red-800"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Authorized Signatory - Glassmorphism Style */}
           <div className="mb-8 p-6 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 shadow-lg">
@@ -712,40 +689,6 @@ export default function AdminPage() {
             )}
           </div>
         </div>
-
-        {/* Comprehensive Waybill Form - Only show when WAYBILL + COMPREHENSIVE mode */}
-        {type === 'WAYBILL' && waybillMode === 'COMPREHENSIVE' && (
-          <div className="bg-white dark:bg-black/20 shadow-xl rounded-2xl p-8 border border-gray-200 dark:border-gray-800 mt-8">
-            <div className="mb-6">
-              <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
-                Comprehensive Waybill
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Professional waybill with full shipment details, financials, and tracking
-              </p>
-            </div>
-            
-            <WaybillForm 
-              onSubmit={async (data) => {
-                try {
-                  const pdfUrl = await generateWaybillPDF(data)
-                  
-                  // Auto-download
-                  const link = document.createElement('a')
-                  link.href = pdfUrl
-                  link.download = `waybill_${data.consignmentNumber}.pdf`
-                  link.click()
-                  
-                  // Show success message
-                  alert(`Waybill ${data.consignmentNumber} generated successfully!`)
-                } catch (error) {
-                  console.error('Error generating waybill:', error)
-                  alert('Error generating waybill. Please try again.')
-                }
-              }}
-            />
-          </div>
-        )}
 
         {/* Generated List */}
         {generated.length > 0 && (
