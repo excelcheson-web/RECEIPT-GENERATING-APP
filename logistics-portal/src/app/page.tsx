@@ -241,13 +241,6 @@ export default function Home() {
       {/* Hero Section - NOW USING TRANSLATIONS */}
       <section id="track" className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 pt-20">
         <div className="max-w-6xl mx-auto w-full">
-          {/* Language Switcher - Left side of hero section (mobile only) */}
-          <div className="absolute left-4 sm:left-6 lg:left-8 top-24 sm:top-28 z-10 md:hidden">
-            <div className="glass-panel p-2 rounded-xl">
-              <LanguageSwitcher />
-            </div>
-          </div>
-          
           <div className="hero-glass-panel p-8 sm:p-12 lg:p-16 max-w-3xl mx-auto text-center">
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white text-high-contrast mb-6 leading-tight">
