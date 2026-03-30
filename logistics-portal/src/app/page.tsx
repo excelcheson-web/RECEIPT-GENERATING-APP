@@ -189,52 +189,61 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Mobile Menu Dropdown */}
+        {/* Mobile Menu Dropdown with Backdrop Blur */}
         {mobileMenuOpen && (
-          <div className="md:hidden glass-panel mx-3 mt-2 p-4 rounded-xl">
-            <nav className="flex flex-col gap-2">
-              <Link 
-                href="/" 
-                className="nav-link text-sm py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {t.nav.home}
-              </Link>
-              <Link 
-                href="/about" 
-                className="nav-link text-sm py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {t.nav.about}
-              </Link>
-              <a 
-                href="#services" 
-                className="nav-link text-sm py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {t.nav.services}
-              </a>
-              <Link 
-                href="/track" 
-                className="nav-link text-sm py-2 text-[#9DC400]"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {t.nav.track}
-              </Link>
-              <Link 
-                href="/contact" 
-                className="nav-link text-sm py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                {t.nav.contact}
-              </Link>
-              {/* Language Switcher in Mobile Menu */}
-              <div className="border-t border-white/20 pt-2 mt-2">
-                <span className="text-white/60 text-xs uppercase tracking-wider mb-2 block">Language</span>
-                <LanguageSwitcher />
-              </div>
-            </nav>
-          </div>
+          <>
+            {/* Backdrop overlay that blurs the background */}
+            <div 
+              className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 md:hidden"
+              onClick={() => setMobileMenuOpen(false)}
+            />
+            
+            {/* Mobile Menu Panel */}
+            <div className="md:hidden glass-panel mx-3 mt-2 p-4 rounded-xl relative z-50">
+              <nav className="flex flex-col gap-2">
+                <Link 
+                  href="/" 
+                  className="nav-link text-sm py-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t.nav.home}
+                </Link>
+                <Link 
+                  href="/about" 
+                  className="nav-link text-sm py-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t.nav.about}
+                </Link>
+                <a 
+                  href="#services" 
+                  className="nav-link text-sm py-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t.nav.services}
+                </a>
+                <Link 
+                  href="/track" 
+                  className="nav-link text-sm py-2 text-[#9DC400]"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t.nav.track}
+                </Link>
+                <Link 
+                  href="/contact" 
+                  className="nav-link text-sm py-2"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {t.nav.contact}
+                </Link>
+                {/* Language Switcher in Mobile Menu */}
+                <div className="border-t border-white/20 pt-2 mt-2">
+                  <span className="text-white/60 text-xs uppercase tracking-wider mb-2 block">Language</span>
+                  <LanguageSwitcher />
+                </div>
+              </nav>
+            </div>
+          </>
         )}
       </header>
 
