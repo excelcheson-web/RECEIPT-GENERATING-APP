@@ -1,47 +1,61 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import emailjs from '@emailjs/browser';
 
 export default function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState('');
 
+  // Initialize EmailJS with public key when component mounts
+  useEffect(() => {
+    emailjs.init('_SrHHxPIUy05AU7dn');
+    console.log('EmailJS initialized');
+  }, []);
+
   const handleSendEmail = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
     setStatus('');
 
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    
     const templateParams = {
-      name: formData.get('user_name'),
-      email: formData.get('user_email'),
-      title: formData.get('subject'),
+      user_name: formData.get('user_name'),
+      user_email: formData.get('user_email'),
+      subject: formData.get('subject'),
       message: formData.get('message'),
+      to_email: 'contact@skydexlogistics.com', // Admin email
     };
+
+    console.log('Sending email with params:', templateParams);
 
     try {
       // 1. Send Notification to Admin (Skyship Logistics)
-      await emailjs.send(
+      console.log('Sending admin notification...');
+      const adminResponse = await emailjs.send(
         'service_ldkowmp', 
         'template_piekyck', 
-        templateParams, 
-        '_SrHHxPIUy05AU7dn'
+        templateParams
       );
+      console.log('Admin email sent:', adminResponse);
 
       // 2. Send Auto-Reply to Customer
-      await emailjs.send(
+      console.log('Sending customer auto-reply...');
+      const customerResponse = await emailjs.send(
         'service_ldkowmp', 
         'template_hn537xj', 
-        templateParams, 
-        '_SrHHxPIUy05AU7dn'
+        templateParams
       );
+      console.log('Customer email sent:', customerResponse);
 
       setStatus('Success! Your message has been sent and a confirmation email is on its way.');
-      (e.target as HTMLFormElement).reset();
-    } catch (error) {
+      form.reset();
+    } catch (error: any) {
       console.error('EmailJS Error:', error);
-      setStatus('Oops! Something went wrong. Please try again later.');
+      console.error('Error details:', error.text || error.message || 'Unknown error');
+      setStatus(`Oops! Something went wrong: ${error.text || error.message || 'Please try again later.'}`);
     } finally {
       setIsSubmitting(false);
     }
