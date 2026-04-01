@@ -2,13 +2,13 @@ export const GREENHILLS_CONFIG = {
   name: 'Greenhills Chemicals Incorporated',
   logo: 'https://placeholder.com/logo-greenhills.png',
   phone: '+639625021374',
-  address: 'Greenhills Product Bldg, M.L Quezon St. Casuntingan, Mandaue City, Cebu'
+  address: 'Greenhills Products Bldg,M.L Quezon St. casuntingan Mandaue city Cebu'
 } as const
 
 export const SKYSHIP_CONFIG = {
   name: 'Skyship Logistics',
   logo: '/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png',
-  phone: '+44 7935 244329',
+  phone: '+447352998900',
   address: 'GOLDEN CROSS HOUSE, 456-458 STRAND, London, United Kingdom',
   iataCode: 'SKY-12345',
   agentCode: 'SKY-AGENT-001',
@@ -20,7 +20,7 @@ export const SKYDEX_CONFIG = SKYSHIP_CONFIG
 
 // Company contact information for use across all pages
 export const COMPANY_CONTACT = {
-  phone: '+44 7935 244329',
+  phone: '+447352998900',
   address: 'GOLDEN CROSS HOUSE, 456-458 STRAND',
   email: 'contact@skyshiplogistics.com'
 } as const

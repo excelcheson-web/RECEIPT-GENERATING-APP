@@ -103,14 +103,16 @@ const testimonials = [
     text: 'Ocean freight services are reliable and cost-effective. They handle all customs documentation professionally, making international shipping hassle-free.',
   },
 ]
+import { COMPANY_CONTACT } from '@/lib/constants'
 
 export default function Home() {
+  const whatsappHref = `https://wa.me/${COMPANY_CONTACT.phone.replace(/\D/g, '')}`
+
   const router = useRouter()
   const { t } = useTranslation()
   const [trackingNumber, setTrackingNumber] = useState('')
   const [currentTestimonial, setCurrentTestimonial] = useState(0)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-
   const handleTrack = (e: React.FormEvent) => {
     e.preventDefault()
     if (trackingNumber.trim()) {
@@ -595,7 +597,7 @@ export default function Home() {
       {/* Floating Action Buttons */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
         <a
-          href="https://wa.me/447935244329"
+          href={whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
           className="w-14 h-14 bg-[#25D366] rounded-full flex items-center justify-center shadow-lg shadow-[#25D366]/30 hover:scale-110 transition-transform duration-300 group"

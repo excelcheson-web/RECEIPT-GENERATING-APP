@@ -114,32 +114,49 @@ body {
 
 /* Spacious Layout */
 main {
-  padding: 2rem 1rem;
-  gap: 2.5rem;
-  max-width: 480px;
+  width: 100%;
+  max-width: 1280px;
+  padding: clamp(1rem, 2vw, 2rem) clamp(1rem, 3vw, 2.5rem);
+  gap: 2rem;
   margin: 0 auto;
 }
 
 .container {
-  max-width: 100%;
+  width: min(1280px, 100%);
+  padding-inline: clamp(1rem, 3vw, 2rem);
   margin: 0 auto;
+}
+
+img,
+svg,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+  height: auto;
 }
 
 /* Mobile Optimizations */
 @media (max-width: 480px) {
   main {
-    padding: 1.5rem 1rem;
-    gap: 2rem;
+    padding: 1rem;
+    gap: 1.5rem;
   }
   
   .glass-panel {
-    margin: 0 -1rem;
+    margin: 0;
     border-radius: 24px;
-    padding: 1.5rem;
+    padding: 1rem;
   }
   
   .glass-icon {
     padding: 10px 14px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1024px) {
+  main {
+    max-width: 960px;
   }
 }
 

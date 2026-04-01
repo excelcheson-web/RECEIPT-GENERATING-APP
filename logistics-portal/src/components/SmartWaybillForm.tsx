@@ -7,7 +7,7 @@ import { WeightStepper } from './WeightStepper'
 import { StatusToggles } from './StatusToggles'
 import { LineItemsManager } from './LineItemsManager'
 import { generateWaybillPDF } from './WaybillTemplate'
-import { getCarrierDisplayName, COUNTRIES } from '@/lib/constants'
+import { getCarrierDisplayName, COUNTRIES, GREENHILLS_CONFIG } from '@/lib/constants'
 import type { WaybillFormData } from '@/lib/types'
 
 interface SmartWaybillFormProps {
@@ -348,9 +348,9 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
           <AddressBookDropdown
             type="shipper"
             onSelect={(name, address, phone) => {
-              updateUserInput('shipperName', name)
-              updateUserInput('shipperAddress', address)
-              updateUserInput('shipperPhone', phone)
+              updateUserInput('shipperName', 'Greenhills chemicals incorporated')
+              updateUserInput('shipperAddress', GREENHILLS_CONFIG.address)
+              updateUserInput('shipperPhone', GREENHILLS_CONFIG.phone)
             }}
             className="mb-3"
           />
@@ -413,7 +413,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             <input
               type="text"
               value={userInput.shipperName || ''}
-              onChange={(e) => updateUserInput('shipperName', e.target.value)}
+              readOnly
               className="w-full px-4 py-3 min-h-[48px] border border-white/20 rounded-xl bg-white/10 text-white placeholder-white/40 focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition"
               placeholder="Enter shipper/company name"
             />
@@ -424,7 +424,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             </label>
             <textarea
               value={userInput.shipperAddress || ''}
-              onChange={(e) => updateUserInput('shipperAddress', e.target.value)}
+              readOnly
               rows={2}
               className="w-full px-4 py-3 border border-white/20 rounded-xl bg-white/10 text-white placeholder-white/40 focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition resize-none"
               placeholder="Full address including city, state, postal code, country"
@@ -437,9 +437,9 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             <input
               type="tel"
               value={userInput.shipperPhone || ''}
-              onChange={(e) => updateUserInput('shipperPhone', e.target.value)}
+              readOnly
               className="w-full px-4 py-3 min-h-[48px] border border-white/20 rounded-xl bg-white/10 text-white placeholder-white/40 focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition"
-              placeholder="+44 7935 244329"
+              placeholder="+447352998900"
             />
           </div>
         </div>
@@ -485,7 +485,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
               value={userInput.consigneePhone || ''}
               onChange={(e) => updateUserInput('consigneePhone', e.target.value)}
               className="w-full px-4 py-3 min-h-[48px] border border-white/20 rounded-xl bg-white/10 text-white placeholder-white/40 focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition"
-              placeholder="+44 7935 244329"
+              placeholder="+447352998900"
             />
           </div>
           <div>

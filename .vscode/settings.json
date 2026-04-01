@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd logistics-portal; npm run build$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

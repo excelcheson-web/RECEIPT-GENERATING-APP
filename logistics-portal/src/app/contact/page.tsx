@@ -3,8 +3,11 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import ContactForm from '@/components/ContactForm'
+import { COMPANY_CONTACT } from '@/lib/constants'
 
 export default function ContactPage() {
+  const whatsappHref = `https://wa.me/${COMPANY_CONTACT.phone.replace(/\D/g, '')}`
+
   return (
     <div className="min-h-screen mesh-gradient py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
@@ -50,13 +53,13 @@ export default function ContactPage() {
               </div>
               <div>
                 <p className="text-white/90 font-medium">Phone</p>
-                <p className="text-white/70 text-sm">+44 7935 244329</p>
+                <p className="text-white/70 text-sm">+447352998900</p>
               </div>
               <div>
                 <p className="text-white/90 font-medium">Address</p>
                 <p className="text-white/70 text-sm">GOLDEN CROSS HOUSE, 456-458 STRAND</p>
               </div>
-              <a href="https://wa.me/447935244329" target="_blank" rel="noopener noreferrer" className="hover:text-[#25D366] transition">
+              <a href={whatsappHref} target="_blank" rel="noopener noreferrer" className="hover:text-[#25D366] transition">
                 <p className="text-white/90 font-medium">WhatsApp</p>
                 <p className="text-white/70 text-sm">Chat with us</p>
               </a>

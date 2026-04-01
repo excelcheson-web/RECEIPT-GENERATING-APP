@@ -103,7 +103,7 @@ export default function CookiesPage() {
                 <br />
                 Email: privacy@skyshiplogistics.com
                 <br />
-                Phone: +44 7935 244329
+                Phone: +447352998900
               </p>
             </section>
 

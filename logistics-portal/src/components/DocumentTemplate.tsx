@@ -38,15 +38,55 @@ async function createWatermarkImage(imagePath: string, opacity: number): Promise
   })
 }
 
+function getCurrencySymbol(cur: string | undefined): string {
+  switch (cur) {
+    case 'USD': return '$'
+    case 'EUR': return 'EUR '
+    case 'GBP': return 'GBP '
+    case 'CHF': return 'CHF '
+    case 'SEK': return 'SEK '
+    case 'NOK': return 'NOK '
+    case 'DKK': return 'DKK '
+    case 'PLN': return 'PLN '
+    case 'CZK': return 'CZK '
+    case 'JPY': return 'JPY '
+    case 'CNY': return 'CNY '
+    case 'INR': return 'INR '
+    case 'KRW': return 'KRW '
+    case 'SGD': return 'SGD '
+    case 'HKD': return 'HKD '
+    case 'CAD': return 'CAD '
+    case 'MXN': return 'MXN '
+    case 'BRL': return 'BRL '
+    case 'ARS': return 'ARS '
+    case 'CLP': return 'CLP '
+    case 'PHP': return 'PHP '
+    default: return '$'
+  }
+}
+
+function getCurrencyWords(cur: string | undefined): { major: string; minor: string } {
+  switch (cur) {
+    case 'EUR': return { major: 'Euros', minor: 'Cents' }
+    case 'GBP': return { major: 'Pounds', minor: 'Pence' }
+    case 'JPY': return { major: 'Yen', minor: 'Sen' }
+    case 'CNY': return { major: 'Yuan', minor: 'Fen' }
+    case 'INR': return { major: 'Rupees', minor: 'Paise' }
+    case 'PHP': return { major: 'Pesos', minor: 'Centavos' }
+    default: return { major: 'Dollars', minor: 'Cents' }
+  }
+}
+
 // Number to Words Conversion Function
-function numberToWords(num: number): string {
+function numberToWords(num: number, currencyCode: string | undefined): string {
   const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 
                 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 
                 'Eighteen', 'Nineteen']
   const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety']
   const scales = ['', 'Thousand', 'Million', 'Billion', 'Trillion']
   
-  if (num === 0) return 'Zero Dollars Only'
+  const currencyWords = getCurrencyWords(currencyCode)
+  if (num === 0) return `Zero ${currencyWords.major} Only`
   
   function convertChunk(n: number): string {
     if (n === 0) return ''
@@ -72,9 +112,9 @@ function numberToWords(num: number): string {
   
   const cents = Math.round((num % 1) * 100)
   if (cents > 0) {
-    result += ' Dollars and ' + convertChunk(cents) + ' Cents Only'
+    result += ` ${currencyWords.major} and ${convertChunk(cents)} ${currencyWords.minor} Only`
   } else {
-    result += ' Dollars Only'
+    result += ` ${currencyWords.major} Only`
   }
   
   return result
@@ -216,22 +256,22 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   const fromTextY = y + 20
   
   const companyName = data.companyName || 'Greenhills Chemical Incorporation'
-  const companyLines = wrapText(pdf, companyName, fromColumnWidth)
+  const companyLines = wrapText(pdf, companyName, fromColumnWidth).slice(0, 2)
   companyLines.forEach((line, i) => {
-    pdf.text(line, margin + boxPadding, fromTextY + (i * 8))
+    pdf.text(line, margin + boxPadding, fromTextY + (i * 6))
   })
   
   const companyAddress = data.companyAddress || '123 Industrial Way, Chemical District'
-  const addressLines = wrapText(pdf, companyAddress, fromColumnWidth)
+  const addressLines = wrapText(pdf, companyAddress, fromColumnWidth).slice(0, 2)
   addressLines.forEach((line, i) => {
-    pdf.text(line, margin + boxPadding, fromTextY + ((companyLines.length + i) * 8))
+    pdf.text(line, margin + boxPadding, fromTextY + ((companyLines.length + i) * 6))
   })
   
-  const emailY = fromTextY + ((companyLines.length + addressLines.length) * 8)
+  const emailY = fromTextY + ((companyLines.length + addressLines.length) * 6)
   pdf.text('Email: billing@greenhills.com', margin + boxPadding, emailY)
   
-  const phone = data.companyPhone || 'Phone: +1 (555) 123-4567'
-  pdf.text(phone, margin + boxPadding, emailY + 8)
+  const phone = data.companyPhone ? `Phone: ${data.companyPhone}` : 'Phone: +1 (555) 123-4567'
+  pdf.text(phone, margin + boxPadding, emailY + 6)
   
   pdf.setFontSize(11)
   pdf.setFont('courier', 'bold')
@@ -262,6 +302,7 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   
   const paymentY = billToTextY + ((customerLines.length + customerAddressLines.length) * 8)
   pdf.text('Payment Method: ' + (data.paymentMethod || 'Bank Transfer'), margin + contentWidth/2 + boxPadding, paymentY)
+  // Only show selected currency and symbol
   pdf.text('Currency: ' + (data.currency || 'USD'), margin + contentWidth/2 + boxPadding, paymentY + 8)
   
   pdf.setTextColor(0, 0, 0)
@@ -302,7 +343,8 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   pdf.setTextColor(60, 60, 60)
   
   let subtotal = 0
-  const taxRate = 16
+  const taxRate = typeof data.taxRate === 'number' ? data.taxRate : 0
+  const currencySymbol = getCurrencySymbol(data.currency)
   
   data.items.forEach((item, index) => {
     const itemTotal = item.quantity * (item.price || 0)
@@ -343,8 +385,8 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
     
     pdf.text(item.description.substring(0, 50), colX[0] + 5, y + 8)
     pdf.text(item.quantity.toString(), colX[1] + 10, y + 8)
-    pdf.text(`$${(item.price || 0).toFixed(2)}`, colX[2] + 5, y + 8)
-    pdf.text(`$${itemTotal.toFixed(2)}`, colX[3] + 5, y + 8)
+    pdf.text(`${currencySymbol}${(item.price || 0).toFixed(2)}`, colX[2] + 5, y + 8)
+    pdf.text(`${currencySymbol}${itemTotal.toFixed(2)}`, colX[3] + 5, y + 8)
     
     pdf.setDrawColor(200, 200, 200)
     pdf.rect(margin, y, contentWidth, 12)
@@ -361,31 +403,27 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   
   // Financial Summary
   y += 15
-  
   const tax = subtotal * (taxRate / 100)
   const grandTotal = subtotal + tax
-  
+  const paid = typeof data.paid === 'number' ? data.paid : 0;
+  const balance = grandTotal - paid;
   const summaryX = pageWidth - margin - 110
   const labelX = summaryX
   const valueX = pageWidth - margin - 8
-  
   // Financial Summary Box with proper padding for Amount in Words
   const financialBoxPadding = 8 // 8mm padding inside the box
   const boxWidth = 115
-  const boxHeight = 65 // Increased height to accommodate padding
-  
+  const boxHeight = 85 // Increased height for paid/balance
   pdf.setDrawColor(200, 200, 200)
   pdf.setLineWidth(0.5)
   // Draw the main financial summary box
   pdf.rect(summaryX - 5, y - 5, boxWidth, boxHeight)
-  
   pdf.setFontSize(10)
   pdf.setFont('courier', 'normal')
   pdf.setTextColor(80, 80, 80)
-  
   // Subtotal row
   pdf.text('Subtotal:', labelX, y)
-  const subtotalStr = `$${subtotal.toFixed(2)}`
+  const subtotalStr = currencySymbol + subtotal.toFixed(2)
   const subtotalWidth = pdf.getTextWidth(subtotalStr)
   if (subtotalWidth > 45) {
     pdf.setFontSize(9)
@@ -393,10 +431,9 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   pdf.text(subtotalStr, valueX, y, { align: 'right' })
   pdf.setFontSize(10)
   y += 10
-  
   // VAT row
   pdf.text(`VAT (${taxRate}%):`, labelX, y)
-  const taxStr = `$${tax.toFixed(2)}`
+  const taxStr = currencySymbol + tax.toFixed(2)
   const taxWidth = pdf.getTextWidth(taxStr)
   if (taxWidth > 45) {
     pdf.setFontSize(9)
@@ -404,86 +441,78 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   pdf.text(taxStr, valueX, y, { align: 'right' })
   pdf.setFontSize(10)
   y += 12
-  
+  // Paid row
+  pdf.text('Paid:', labelX, y)
+  pdf.text(currencySymbol + paid.toFixed(2), valueX, y, { align: 'right' })
+  y += 10;
+  // Balance row
+  pdf.text('Balance:', labelX, y)
+  pdf.text(currencySymbol + balance.toFixed(2), valueX, y, { align: 'right' })
+  y += 10;
   // Grand Total row with lines above and below
   pdf.setDrawColor(60, 60, 60)
   pdf.setLineWidth(0.5)
   pdf.line(summaryX - 5, y - 2, pageWidth - margin, y - 2)
   pdf.line(summaryX - 5, y + 10, pageWidth - margin, y + 10)
-  
   pdf.setFontSize(12)
   pdf.setFont('courier', 'bold')
   pdf.setTextColor(180, 0, 0)
   pdf.text('GRAND TOTAL:', labelX, y + 6)
-  const grandTotalStr = `$${grandTotal.toFixed(2)}`
+  const grandTotalStr = currencySymbol + grandTotal.toFixed(2)
   const grandTotalWidth = pdf.getTextWidth(grandTotalStr)
   if (grandTotalWidth > 50) {
     pdf.setFontSize(10)
   }
   pdf.text(grandTotalStr, valueX, y + 6, { align: 'right' })
-  
+
   // Amount in Words Section with dedicated container and padding
   // Create visual separation from Grand Total
   y += 18 // Space after Grand Total line
-  
   // Define Amount in Words container with internal padding
   const amountInWordsContainerY = y
   const amountInWordsContainerHeight = 25 // Height for the container
   const amountInWordsPadding = 3 // 3mm internal padding
-  
   // Draw a subtle background for the Amount in Words section (optional, for visual separation)
   pdf.setFillColor(250, 250, 250) // Very light gray background
   pdf.rect(summaryX - 5 + 1, amountInWordsContainerY, boxWidth - 2, amountInWordsContainerHeight, 'F')
-  
   // Amount in Words - BLACK color, Courier font, with proper padding
   pdf.setFontSize(9) // Slightly smaller to fit better
   pdf.setFont('courier', 'bold')
   pdf.setTextColor(0, 0, 0) // Black color
-  
-  const amountInWords = numberToWords(grandTotal)
-  
+  const amountInWords = numberToWords(grandTotal, data.currency)
   // Wrap text with constrained width to ensure it stays within padded area
   // Available width = boxWidth - (2 * padding) - label margin
   const availableWidth = boxWidth - (2 * amountInWordsPadding) - 5
   const wordsLines = wrapText(pdf, `Amount in words: ${amountInWords}`, availableWidth)
-  
   // Draw text with internal padding (offset by padding amount)
   const textStartX = labelX + amountInWordsPadding
   const textStartY = amountInWordsContainerY + amountInWordsPadding + 4 // +4 for line height offset
-  
   wordsLines.forEach((line, i) => {
     if (i < 3) { // Allow up to 3 lines
       pdf.text(line, textStartX, textStartY + (i * 5)) // 5mm line spacing
     }
   })
-  
   // Reset text color
   pdf.setTextColor(0, 0, 0)
-  
   pdf.setTextColor(0, 0, 0)
   
   // Notes Section
   y += 30
-  
-  const notesAndFooterHeight = 100
+  const notesAndFooterHeight = 140
   if (y + notesAndFooterHeight > pageHeight - margin) {
     pdf.addPage()
     y = margin + 20
   }
-  
   pdf.setDrawColor(200, 200, 200)
   pdf.setLineWidth(0.5)
-  pdf.rect(margin, y, contentWidth, 30)
-  
+  pdf.rect(margin, y, contentWidth, 42)
   pdf.setFontSize(10)
   pdf.setFont('courier', 'bold')
   pdf.setTextColor(80, 80, 80)
   pdf.text('NOTES / TERMS:', margin + 5, y + 6)
-  
   pdf.setFontSize(9)
   pdf.setFont('courier', 'normal')
   pdf.setTextColor(100, 100, 100)
-  
   const notesText = data.notes || 'Payment is due within 30 days. Please include receipt number on all payments. For questions, contact billing@greenhills.com'
   const notesLines = wrapText(pdf, notesText, contentWidth - 10)
   notesLines.forEach((line, i) => {
@@ -491,9 +520,24 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
       pdf.text(line, margin + 5, y + 14 + (i * 5))
     }
   })
+  // Receipt Description/Memo under Notes
+  pdf.setFontSize(10)
+  pdf.setFont('courier', 'bold')
+  pdf.setTextColor(80, 80, 80)
+  pdf.text('RECEIPT DESCRIPTION / MEMO:', margin + 5, y + 24)
+  pdf.setFontSize(9)
+  pdf.setFont('courier', 'normal')
+  pdf.setTextColor(100, 100, 100)
+  const descText = data.receiptDescription || data.description || ''
+  const descLines = wrapText(pdf, descText, contentWidth - 10)
+  descLines.forEach((line, i) => {
+    if (i < 2) {
+      pdf.text(line, margin + 5, y + 30 + (i * 5))
+    }
+  })
   
   // Mode of Transfer and Receipt Description - Formal boxed layout
-  y += 35
+  y += 47
   
   // Draw box around transfer and description sections
   pdf.setDrawColor(200, 200, 200)
@@ -525,8 +569,8 @@ async function generateReceiptPDF(data: DocumentConfig, onComplete?: (pdfUrl: st
   pdf.setFont('courier', 'normal')
   pdf.setTextColor(60, 60, 60)
   const receiptDesc = data.receiptDescription || 'Payment for goods and services rendered'
-  const descLines = wrapText(pdf, receiptDesc, contentWidth/2 - 10)
-  descLines.forEach((line, i) => {
+  const receiptDescLines = wrapText(pdf, receiptDesc, contentWidth/2 - 10)
+  receiptDescLines.forEach((line, i) => {
     if (i < 3) {
       pdf.text(line, margin + contentWidth/2 + 5, y + 18 + (i * 5))
     }
