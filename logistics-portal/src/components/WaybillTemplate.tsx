@@ -82,6 +82,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   const pageWidth = 297  // A4 landscape width
   const pageHeight = 210 // A4 landscape height
   const margin = 8
+  const footerBottomMargin = 10
   const contentWidth = pageWidth - 2 * margin
   
   // Set off-white background
@@ -89,6 +90,22 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   pdf.rect(0, 0, pageWidth, pageHeight, 'F')
 
   let currentY = margin
+
+  const drawWrappedClampedText = (
+    text: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    maxHeight: number,
+    lineHeight: number
+  ) => {
+    const safeText = String(text || '')
+    const wrapped = pdf.splitTextToSize(safeText, maxWidth)
+    const maxLines = Math.max(1, Math.floor(maxHeight / lineHeight))
+    const lines = wrapped.slice(0, maxLines)
+    pdf.text(lines, x, y)
+    return lines.length
+  }
 
   // ========== HEADER SECTION ==========
   const headerHeight = 30  // Increased from 25 to 30 to prevent overlap
@@ -200,10 +217,10 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   // Barcode image
   pdf.addImage(barcodeDataUrl, 'PNG', barcodeX, barcodeY + 7, barcodeWidth, barcodeHeight)
 
-  currentY += headerHeight + 5
+  currentY += headerHeight + 4
 
   // ========== ROW 1: Shipper | Consignee | Routing ==========
-  const row1Height = 45
+  const row1Height = 42
   const colWidth = contentWidth / 3
   
   // Helper to draw section box
@@ -236,12 +253,15 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
         
         // Value
         const labelWidth = pdf.getTextWidth(line.label)
+        const valueX = x + 3 + labelWidth + 2
+        const valueMaxWidth = Math.max(10, w - (valueX - x) - 3)
+        const remainingHeight = Math.max(3, y + h - 3 - lineY)
         pdf.setTextColor(COLORS.textDark)
         pdf.setFont('courier', 'bold')
-        pdf.setFontSize(9)
-        pdf.text(line.value, x + 3 + labelWidth + 2, lineY)
-        
-        lineY += 6
+        pdf.setFontSize(8)
+        const usedLines = drawWrappedClampedText(line.value || 'N/A', valueX, lineY, valueMaxWidth, remainingHeight, 3.5)
+
+        lineY += Math.max(6, usedLines * 3.5 + 2)
       }
     })
   }
@@ -250,12 +270,12 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   drawSection(
     margin,
     currentY,
-    colWidth - 2,
+    colWidth,
     row1Height,
     'Shipper (From)',
     [
       { label: 'Name:', value: data.senderName || 'N/A' },
-      { label: 'Address:', value: (data.senderAddress || '').substring(0, 40) },
+      { label: 'Address:', value: data.senderAddress || 'N/A' },
       { label: 'Phone:', value: data.senderPhone || data.senderTelephone || 'N/A' },
       { label: 'Account:', value: data.senderAccountNo || data.accountNumber || 'N/A' },
     ]
@@ -265,12 +285,12 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   drawSection(
     margin + colWidth,
     currentY,
-    colWidth - 2,
+    colWidth,
     row1Height,
     'Consignee (To)',
     [
       { label: 'Name:', value: data.receiverName || 'N/A' },
-      { label: 'Address:', value: (data.receiverAddress || '').substring(0, 40) },
+      { label: 'Address:', value: data.receiverAddress || 'N/A' },
       { label: 'Phone:', value: data.receiverPhone || data.receiverTelephone || 'N/A' },
       { label: 'City:', value: data.receiverCity || 'N/A' },
     ]
@@ -284,23 +304,23 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   drawSection(
     margin + colWidth * 2,
     currentY,
-    colWidth - 2,
+    colWidth,
     row1Height,
     'Routing & Destination',
     [
       { label: 'Departure:', value: departure },
       { label: 'Destination:', value: destination },
       { label: 'Date:', value: departureDate },
-      { label: 'Route:', value: (data.routeNumber || '').substring(0, 25) || 'N/A' },
+      { label: 'Route:', value: data.routeNumber || 'N/A' },
     ]
   )
 
-  currentY += row1Height + 5
+  currentY += row1Height
 
   // ========== ROW 2: Description (wide) | Charges (side) ==========
   const row2Height = 55
   const descWidth = contentWidth * 0.65
-  const chargesWidth = contentWidth * 0.35 - 5
+  const chargesWidth = contentWidth - descWidth
 
   // Description of Goods Table
   pdf.setDrawColor(COLORS.border)
@@ -362,15 +382,17 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
       pdf.text(String(noOfPcs), cellX + 2, rowY + 5)
       cellX += colWidths[0]
       
+      const rowTopY = rowY + 1
+      const rowTextHeight = 8
+
       // Type
       const typeOfPkg = item.typeOfPkg || 'Box'
-      pdf.text(typeOfPkg, cellX, rowY + 5)
+      drawWrappedClampedText(String(typeOfPkg), cellX, rowTopY + 3.5, colWidths[1] - 2, rowTextHeight, 3.2)
       cellX += colWidths[1]
       
       // Description
       const desc = item.description || item.cargoDescription || data.contents || 'N/A'
-      const displayDesc = desc.length > 35 ? desc.substring(0, 35) + '...' : desc
-      pdf.text(displayDesc, cellX, rowY + 5)
+      drawWrappedClampedText(String(desc), cellX, rowTopY + 3.5, colWidths[2] - 2, rowTextHeight, 3.2)
       cellX += colWidths[2]
       
       // Weight
@@ -381,7 +403,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
       // Dimensions
       const dims = item.dimensions || {}
       const dimText = `${dims.length || 0}×${dims.width || 0}×${dims.height || 0}`
-      pdf.text(dimText, cellX, rowY + 5)
+      drawWrappedClampedText(dimText, cellX, rowTopY + 3.5, colWidths[4] - 2, rowTextHeight, 3.2)
       
       rowY += 10
     })
@@ -397,7 +419,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   })
 
   // Charges & Fees Box (right side)
-  const chargesX = margin + descWidth + 5
+  const chargesX = margin + descWidth
   pdf.setDrawColor(COLORS.border)
   pdf.setLineWidth(0.5)
   pdf.rect(chargesX, currentY, chargesWidth, row2Height)
@@ -455,19 +477,19 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   pdf.setFontSize(12)
   pdf.text(`$${total.toFixed(2)}`, chargesX + chargesWidth - 5, chargeY + 6, { align: 'right' })
 
-  currentY += row2Height + 5
+  currentY += row2Height
 
-  // ========== ROW 3: Shipment Total | Note | Terms ==========
-  const row3Height = 30
-  const thirdWidth = (contentWidth - 10) / 3
+  // ========== ROW 3: Shipment Total | Note ==========
+  const row3Height = 26
+  const halfWidth = contentWidth / 2
 
   // Shipment Totals (Left)
   pdf.setDrawColor(COLORS.border)
   pdf.setLineWidth(0.5)
-  pdf.rect(margin, currentY, thirdWidth, row3Height)
+  pdf.rect(margin, currentY, halfWidth, row3Height)
   
   pdf.setFillColor(COLORS.primary)
-  pdf.rect(margin, currentY, thirdWidth, 7, 'F')
+  pdf.rect(margin, currentY, halfWidth, 7, 'F')
   pdf.setTextColor(COLORS.secondary)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(9)
@@ -482,26 +504,57 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   pdf.text(`Total Weight: ${totalWeight.toFixed(2)} KG`, margin + 5, currentY + 21)
 
   // NOTE Box (Center) - Special Instructions/Handling
-  const noteX = margin + thirdWidth + 5
+  const noteX = margin + halfWidth
   pdf.setDrawColor(COLORS.border)
   pdf.setLineWidth(0.5)
-  pdf.rect(noteX, currentY, thirdWidth, row3Height)
+  pdf.rect(noteX, currentY, halfWidth, row3Height)
   
   pdf.setFillColor(COLORS.primary)
-  pdf.rect(noteX, currentY, thirdWidth, 7, 'F')
+  pdf.rect(noteX, currentY, halfWidth, 7, 'F')
   pdf.setTextColor(COLORS.secondary)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(9)
   pdf.text('NOTE', noteX + 3, currentY + 5)
   
   const handlingText = data.handlingInformation || data.specialInstructions || 'No special handling required'
+  const noteDividerX = noteX + halfWidth / 2
+
+  // Split NOTE box into two vertical sections.
+  pdf.setDrawColor(COLORS.border)
+  pdf.setLineWidth(0.3)
+  pdf.line(noteDividerX, currentY + 7, noteDividerX, currentY + row3Height)
+
   pdf.setTextColor(COLORS.textDark)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(7)
-  const splitHandling = pdf.splitTextToSize(handlingText, thirdWidth - 6)
-  pdf.text(splitHandling, noteX + 3, currentY + 12)
+  drawWrappedClampedText(
+    handlingText,
+    noteX + 3,
+    currentY + 12,
+    halfWidth / 2 - 8,
+    row3Height - 11,
+    3.2
+  )
+
+  pdf.setTextColor(COLORS.secondary)
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(8)
+  pdf.text('TERMS AND CONDITIONS', noteDividerX + 3, currentY + 12)
+
+  const termsBody = 'Received in apparent good order unless otherwise noted. Subject to the terms and conditions of the Carrier\'s Service Guide. Liability is limited as per the back of this document or applicable law. All claims for loss or damage must be filed within 14 days.'
+  pdf.setTextColor(COLORS.textDark)
+  pdf.setFont('helvetica', 'normal')
+  pdf.setFontSize(6)
+  drawWrappedClampedText(
+    termsBody,
+    noteDividerX + 3,
+    currentY + 16,
+    halfWidth / 2 - 8,
+    row3Height - 10,
+    2.8
+  )
   
-  // Dangerous goods checkbox in NOTE box
+  // Dangerous goods checkbox stays in the left section of NOTE box.
   const checkboxY = currentY + row3Height - 6
   pdf.setDrawColor(COLORS.secondary)
   pdf.setLineWidth(0.5)
@@ -519,32 +572,11 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   pdf.setFontSize(7)
   pdf.text('DANGEROUS GOODS', noteX + 9, checkboxY + 2)
 
-  // TERMS AND CONDITIONS Box (Right)
-  const termsX = margin + thirdWidth * 2 + 10
-  pdf.setDrawColor(COLORS.border)
-  pdf.setLineWidth(0.5)
-  pdf.rect(termsX, currentY, thirdWidth, row3Height)
-  
-  pdf.setFillColor(COLORS.primary)
-  pdf.rect(termsX, currentY, thirdWidth, 7, 'F')
-  pdf.setTextColor(COLORS.secondary)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(8)
-  pdf.text('TERMS AND CONDITIONS', termsX + 3, currentY + 5)
-  
-  // Terms text as specified by user
-  const termsBoxText = 'Received in apparent good order unless otherwise noted. Subject to the terms and conditions of the Carrier\'s Service Guide. Liability is limited as per the back of this document or applicable law. All claims for loss or damage must be filed within 14 days.'
-  pdf.setTextColor(COLORS.textDark)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(6)
-  const splitTermsBox = pdf.splitTextToSize(termsBoxText, thirdWidth - 6)
-  pdf.text(splitTermsBox, termsX + 3, currentY + 11)
-
-  currentY += row3Height + 5
+  currentY += row3Height
 
   // ========== ROW 4: Signatures | Terms ==========
   const row4Height = 30
-  const sigColWidth = (contentWidth - 10) / 3
+  const sigColWidth = contentWidth / 3
 
   // Shipper Signature
   pdf.setDrawColor(COLORS.border)
@@ -577,78 +609,64 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   // Carrier Agent - with FIATA Logo and Terms Text
   pdf.setDrawColor(COLORS.border)
   pdf.setLineWidth(0.5)
-  pdf.rect(margin + sigColWidth + 5, currentY, sigColWidth, row4Height)
+  pdf.rect(margin + sigColWidth, currentY, sigColWidth, row4Height)
   
   pdf.setFillColor(COLORS.primary)
-  pdf.rect(margin + sigColWidth + 5, currentY, sigColWidth, 7, 'F')
+  pdf.rect(margin + sigColWidth, currentY, sigColWidth, 7, 'F')
   pdf.setTextColor(COLORS.secondary)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(8)
-  pdf.text('CARRIER AUTHORIZED AGENT', margin + sigColWidth + 8, currentY + 5)
+  pdf.text('CARRIER AUTHORIZED AGENT', margin + sigColWidth + 3, currentY + 5)
   
-  // Add FIATA Logo inside the carrier agent box - SHIFTED TO THE RIGHT
+  // Add FIATA Logo inside the carrier agent box.
   const fiataImage = await loadImageAsDataURL('/FIATA LOGO RESIZED.png')
+  const fiataWidth = 22
+  const fiataHeight = 14
+  const fiataX = margin + sigColWidth + (sigColWidth - fiataWidth) * 0.65
+  const fiataY = currentY + 9
   if (fiataImage) {
     try {
-      // Position FIATA logo shifted to the right within the box
-      const fiataWidth = 22  // Slightly reduced width
-      const fiataHeight = 16 // Slightly reduced height
-      const fiataX = margin + sigColWidth + 5 + (sigColWidth - fiataWidth) * 0.65  // Shifted to the right (65% from left)
-      const fiataY = currentY + 9  // Position below header
       pdf.addImage(fiataImage, 'PNG', fiataX, fiataY, fiataWidth, fiataHeight)
     } catch (e) {
       console.error('Failed to add FIATA logo:', e)
     }
   }
   
-  // Add FIATA terms text - MOVED UP higher in the box
+  // Keep write-up between logo and bottom border with safe padding.
   pdf.setTextColor(COLORS.textDark)
   pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(7) // Slightly larger font since we moved it up
-  const fiataText = 'I/WE AGREE THAT FIATA STANDARD TERMS APPLY TO SHIPMENT'
-  const splitFiataText = pdf.splitTextToSize(fiataText, sigColWidth - 8)
-  pdf.text(splitFiataText, margin + sigColWidth + 8, currentY + 22)
+  pdf.setFontSize(6)
+  const fiataText = 'I/WE AGREE THAT FIATA STANDARD TERMS APPLY TO THIS SHIPMENT'
+  const fiataTextStartY = fiataY + fiataHeight + 3
+  drawWrappedClampedText(
+    fiataText,
+    margin + sigColWidth + 3,
+    fiataTextStartY,
+    sigColWidth - 8,
+    row4Height - (fiataTextStartY - currentY) - 2,
+    3
+  )
 
   // Date
   pdf.setDrawColor(COLORS.border)
   pdf.setLineWidth(0.5)
-  pdf.rect(margin + sigColWidth * 2 + 10, currentY, sigColWidth, row4Height)
+  pdf.rect(margin + sigColWidth * 2, currentY, sigColWidth, row4Height)
   
   pdf.setFillColor(COLORS.primary)
-  pdf.rect(margin + sigColWidth * 2 + 10, currentY, sigColWidth, 7, 'F')
+  pdf.rect(margin + sigColWidth * 2, currentY, sigColWidth, 7, 'F')
   pdf.setTextColor(COLORS.secondary)
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(8)
-  pdf.text('DATE', margin + sigColWidth * 2 + 13, currentY + 5)
+  pdf.text('DATE', margin + sigColWidth * 2 + 3, currentY + 5)
   
   const currentDate = new Date().toISOString().split('T')[0]
   pdf.setTextColor(COLORS.textDark)
   pdf.setFont('courier', 'bold')
   pdf.setFontSize(10)
-  pdf.text(currentDate, margin + sigColWidth * 2 + 15, currentY + 20)
-
-  // Terms & Conditions (full width below signatures)
-  const termsY = currentY + row4Height + 3
-  pdf.setDrawColor(COLORS.border)
-  pdf.setLineWidth(0.5)
-  pdf.rect(margin, termsY, contentWidth, 12)
-  
-  pdf.setFillColor(240, 240, 240)
-  pdf.rect(margin, termsY, contentWidth, 6, 'F')
-  pdf.setTextColor(COLORS.secondary)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(7)
-  pdf.text('TERMS & CONDITIONS', margin + 3, termsY + 4)
-  
-  const termsText = data.termsAndConditions || 'Received in apparent good order unless otherwise noted. Subject to the terms and conditions of the Carrier\'s Service Guide. Liability is limited as per applicable law.'
-  pdf.setTextColor(COLORS.textDark)
-  pdf.setFont('helvetica', 'bold')
-  pdf.setFontSize(7)
-  const splitTerms = pdf.splitTextToSize(termsText, contentWidth - 6)
-  pdf.text(splitTerms, margin + 3, termsY + 9)
+  pdf.text(currentDate, margin + sigColWidth * 2 + 5, currentY + 20)
 
   // Footer - REMOVED BLUE LINE that was cutting across signature boxes
-  const footerY = pageHeight - 6
+  const footerY = pageHeight - footerBottomMargin
   
   // Only show copyright text without the blue line
   pdf.setTextColor(COLORS.secondary)

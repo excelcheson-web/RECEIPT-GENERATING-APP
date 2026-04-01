@@ -1,54 +1,105 @@
-'use client'
-
-import { useState, useCallback, useRef } from 'react'
-import type { DocumentConfig } from '@/lib/types'
-import { GREENHILLS_CONFIG, SKYSHIP_CONFIG, generateTrackingId } from '@/lib/constants'
-import { generateDocumentPDF } from '@/components/DocumentTemplate'
-import SmartWaybillForm from '@/components/SmartWaybillForm'
-import jsPDF from 'jspdf'
-
-// Receipt item interface
-interface ReceiptItem {
-  description: string
-  quantity: number
-  unitPrice?: number
+"use client";
+// Helper to get currency symbol (must be outside the React component)
+function getCurrencySymbol(cur: string) {
+  switch (cur) {
+    case 'USD': return '$';
+    case 'EUR': return '€';
+    case 'GBP': return '£';
+    case 'CHF': return 'CHF ';
+    case 'SEK': return 'kr ';
+    case 'NOK': return 'kr ';
+    case 'DKK': return 'kr ';
+    case 'PLN': return 'zł ';
+    case 'CZK': return 'Kč ';
+    case 'JPY': return '¥';
+    case 'CNY': return '¥';
+    case 'INR': return '₹';
+    case 'KRW': return '₩';
+    case 'SGD': return 'S$';
+    case 'HKD': return 'HK$';
+    case 'CAD': return 'C$';
+    case 'MXN': return 'Mex$';
+    case 'BRL': return 'R$';
+    case 'ARS': return 'ARS$';
+    case 'CLP': return 'CLP$';
+    case 'PHP': return 'PHP ';
+    default: return '';
+  }
 }
+import { db } from "@/lib/firebase";
+import { useState, useRef, useEffect, useCallback } from "react";
+// Local ReceiptItem type (not exported from types.ts)
+type ReceiptItem = { description: string; quantity: number; unitPrice?: number; total?: number };
+import type { DocumentConfig } from "@/lib/types";
+import { GREENHILLS_CONFIG, SKYSHIP_CONFIG, generateTrackingId } from "@/lib/constants";
+import { generateDocumentPDF } from "@/components/DocumentTemplate";
+import SmartWaybillForm from "@/components/SmartWaybillForm";
 
-interface FormData {
-  companyName: string
-  logoUrl: string
-  type: 'RECEIPT' | 'WAYBILL'
-  items: ReceiptItem[]
-  origin: string
-  destination: string
-  companyAddress: string
-  companyPhone: string
-  customerName: string
-  customerAddress: string
-  taxRate: number
-  // New professional fields
-  receiptNumber: string
-  dateOfIssue: string
-  paymentMethod: 'Cash' | 'Bank Transfer' | 'POS' | 'Credit Card'
-  currency: 'USD' | 'EUR' | 'GBP' | 'NGN' | 'KES' | 'GHS'
-  signatureUrl: string
-  applyStamp: boolean
-  notes: string
-}
+const ADMIN_AUTH_KEY = 'skyship_admin_auth'
 
 export default function AdminPage() {
+  const [isAuthReady, setIsAuthReady] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [loginUsername, setLoginUsername] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [loginError, setLoginError] = useState('')
+
+  useEffect(() => {
+    const stored = window.sessionStorage.getItem(ADMIN_AUTH_KEY)
+    if (stored === 'true') {
+      setIsAuthenticated(true)
+    }
+    setIsAuthReady(true)
+  }, [])
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    try {
+      const response = await fetch('/api/admin-auth', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username: loginUsername, password: loginPassword }),
+      })
+
+      if (!response.ok) {
+        setLoginError('Invalid username or password')
+        return
+      }
+
+      window.sessionStorage.setItem(ADMIN_AUTH_KEY, 'true')
+      setIsAuthenticated(true)
+      setLoginError('')
+      setLoginPassword('')
+    } catch {
+      setLoginError('Unable to login right now. Please try again.')
+    }
+  }
+
+  const handleLogout = () => {
+    window.sessionStorage.removeItem(ADMIN_AUTH_KEY)
+    setIsAuthenticated(false)
+    setLoginUsername('')
+    setLoginPassword('')
+    setLoginError('')
+  }
+
   const [type, setType] = useState<'RECEIPT' | 'WAYBILL'>('RECEIPT')
   const [companyName, setCompanyName] = useState('Greenhills Chemical Incorporation')
   const [logoUrl, setLogoUrl] = useState('')
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [companyAddress, setCompanyAddress] = useState('')
-  const [companyPhone, setCompanyPhone] = useState('')
+  const [companyAddress] = useState<string>(GREENHILLS_CONFIG.address)
+  const [companyPhone] = useState<string>(GREENHILLS_CONFIG.phone)
   const [customerName, setCustomerName] = useState('')
   const [customerAddress, setCustomerAddress] = useState('')
   const [origin, setOrigin] = useState('')
   const [destination, setDestination] = useState('')
   const [taxRate, setTaxRate] = useState(16)
   const [items, setItems] = useState<ReceiptItem[]>([])
+  const [paid, setPaid] = useState(0);
+  const [balance, setBalance] = useState(0);
   const [generated, setGenerated] = useState<DocumentConfig[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -56,7 +107,7 @@ export default function AdminPage() {
   const [receiptNumber, setReceiptNumber] = useState('')
   const [dateOfIssue, setDateOfIssue] = useState(() => new Date().toISOString().split('T')[0])
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Bank Transfer' | 'POS' | 'Credit Card'>('Cash')
-  const [currency, setCurrency] = useState<'USD' | 'EUR' | 'GBP' | 'NGN' | 'KES' | 'GHS'>('USD')
+  const [currency, setCurrency] = useState<'USD' | 'EUR' | 'GBP' | 'CHF' | 'SEK' | 'NOK' | 'DKK' | 'PLN' | 'CZK' | 'JPY' | 'CNY' | 'INR' | 'KRW' | 'SGD' | 'HKD' | 'CAD' | 'MXN' | 'BRL' | 'ARS' | 'CLP' | 'PHP'>('USD')
   const [signatureUrl, setSignatureUrl] = useState('')
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null)
   const [applyStamp, setApplyStamp] = useState(false)
@@ -66,11 +117,23 @@ export default function AdminPage() {
   const signatureInputRef = useRef<HTMLInputElement>(null)
 
   const addItem = useCallback(() => {
-    setItems(prev => [...prev, {description: '', quantity: 1, unitPrice: 0}])
+    setItems(prev => [...prev, {description: '', quantity: 0, unitPrice: 0, total: 0}])
   }, [])
 
   const updateItem = useCallback((index: number, field: keyof ReceiptItem, value: string | number) => {
-    setItems(prev => prev.map((item, i) => i === index ? {...item, [field]: value} : item))
+    setItems(prev => prev.map((item, i) => {
+      if (i !== index) return item;
+      let updated = { ...item, [field]: value };
+      // If quantity or unitPrice changes, recalc total
+      if (field === 'quantity' || field === 'unitPrice') {
+        updated.total = (Number(updated.quantity) || 0) * (Number(updated.unitPrice) || 0);
+      }
+      // If total is edited, recalc unitPrice if quantity > 0
+      if (field === 'total' && Number(updated.quantity) > 0) {
+        updated.unitPrice = Number(updated.total) / Number(updated.quantity);
+      }
+      return updated;
+    }))
   }, [])
 
   const removeItem = useCallback((index: number) => {
@@ -182,12 +245,15 @@ export default function AdminPage() {
         signatureUrl: signatureUrl || '',
         applyStamp,
         notes: notes || '',
-        companyAddress: companyAddress || '',
-        companyPhone: companyPhone || '',
+        companyAddress: companyAddress || GREENHILLS_CONFIG.address,
+        companyPhone: companyPhone || GREENHILLS_CONFIG.phone,
         customerName: customerName || '',
         customerAddress: customerAddress || '',
         taxRate: taxRate || 0,
-        description: receiptDescription || '', // NEW: Receipt description
+        paid,
+        balance,
+        receiptDescription: receiptDescription || '',
+        description: receiptDescription || '',
       }
 
       console.log('Generating PDF with data:', doc)
@@ -231,26 +297,93 @@ export default function AdminPage() {
     }
   }
 
-  const subtotal = items.reduce((sum, item) => sum + (item.quantity * (item.unitPrice || 0)), 0)
+  const subtotal = items.reduce((sum, item) => sum + (item.total || (item.quantity * (item.unitPrice || 0))), 0)
   const tax = subtotal * (taxRate / 100)
   const total = subtotal + tax
 
+  useEffect(() => {
+    setBalance(total - paid);
+  }, [total, paid]);
+
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-white/80 text-sm">Loading admin access...</div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md rounded-2xl border border-white/20 bg-white/10 backdrop-blur-md p-6 sm:p-8 shadow-2xl">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Admin Login</h1>
+          <p className="text-white/70 text-sm mt-2">Sign in to access the admin dashboard.</p>
+
+          <form onSubmit={handleLogin} className="mt-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-white/90 mb-2">Username</label>
+              <input
+                type="text"
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
+                className="w-full rounded-xl border border-white/25 bg-black/30 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-lime-400"
+                placeholder="Enter username"
+                autoComplete="username"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-white/90 mb-2">Password</label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="w-full rounded-xl border border-white/25 bg-black/30 px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-lime-400"
+                placeholder="Enter password"
+                autoComplete="current-password"
+              />
+            </div>
+
+            {loginError && <p className="text-red-300 text-sm">{loginError}</p>}
+
+            <button
+              type="submit"
+              className="w-full rounded-xl bg-lime-500 py-3 font-semibold text-[#0b1b33] hover:bg-lime-400 transition"
+            >
+              Login
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex min-h-full flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-zinc-50 dark:bg-black">
-      <div className="w-full max-w-2xl space-y-8">
+    <div className="flex min-h-full flex-col items-center justify-start py-8 sm:py-12 px-4 sm:px-6 lg:px-8 bg-zinc-50 dark:bg-black">
+      <div className="w-full max-w-6xl space-y-8">
         <div>
-          <h2 className="mt-6 text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-            Admin Dashboard
-          </h2>
+          <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+              Admin Dashboard
+            </h2>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="self-start sm:self-auto px-4 py-2 rounded-lg text-sm font-semibold bg-slate-200 hover:bg-slate-300 text-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100"
+            >
+              Logout
+            </button>
+          </div>
           <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
             Create receipt or waybill
           </p>
         </div>
 
-        <div className="bg-white dark:bg-black/20 shadow-xl rounded-2xl p-8 border border-gray-200 dark:border-gray-800">
+        <div className="bg-white dark:bg-black/20 shadow-xl rounded-2xl p-4 sm:p-6 lg:p-8 border border-gray-200 dark:border-gray-800">
           {/* Toggle */}
           <div className="flex flex-col gap-4 mb-8">
-            <div className="flex gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
               <button
                 onClick={() => toggleType('RECEIPT')}
                 className={`px-6 py-3 rounded-xl font-semibold transition-all ${
@@ -331,7 +464,7 @@ export default function AdminPage() {
               <input
                 type="text"
                 value={companyAddress}
-                onChange={(e) => setCompanyAddress(e.target.value)}
+                readOnly
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-black/50 text-gray-900 dark:text-white"
                 placeholder="123 Business St, City"
               />
@@ -343,9 +476,9 @@ export default function AdminPage() {
               <input
                 type="tel"
                 value={companyPhone}
-                onChange={(e) => setCompanyPhone(e.target.value)}
+                readOnly
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-black/50 text-gray-900 dark:text-white"
-                placeholder="+44 7935 244329"
+                placeholder="+447352998900"
               />
             </div>
           </div>
@@ -378,21 +511,10 @@ export default function AdminPage() {
                     type="date"
                     value={dateOfIssue}
                     onChange={(e) => setDateOfIssue(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl dark:bg-black/30 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
                   />
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Receipt Description / Memo
-                  </label>
-                  <input
-                    type="text"
-                    value={receiptDescription}
-                    onChange={(e) => setReceiptDescription(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
-                    placeholder="e.g., Payment for chemical supplies - Invoice #12345"
-                  />
-                </div>
+                
               </div>
             </div>
           )}
@@ -432,10 +554,47 @@ export default function AdminPage() {
                     <option value="USD">USD - US Dollar</option>
                     <option value="EUR">EUR - Euro</option>
                     <option value="GBP">GBP - British Pound</option>
-                    <option value="NGN">NGN - Nigerian Naira</option>
-                    <option value="KES">KES - Kenyan Shilling</option>
-                    <option value="GHS">GHS - Ghanaian Cedi</option>
+                    <option value="CHF">CHF - Swiss Franc</option>
+                    <option value="SEK">SEK - Swedish Krona</option>
+                    <option value="NOK">NOK - Norwegian Krone</option>
+                    <option value="DKK">DKK - Danish Krone</option>
+                    <option value="PLN">PLN - Polish Zloty</option>
+                    <option value="CZK">CZK - Czech Koruna</option>
+                    <option value="JPY">JPY - Japanese Yen</option>
+                    <option value="CNY">CNY - Chinese Yuan</option>
+                    <option value="INR">INR - Indian Rupee</option>
+                    <option value="KRW">KRW - South Korean Won</option>
+                    <option value="SGD">SGD - Singapore Dollar</option>
+                    <option value="HKD">HKD - Hong Kong Dollar</option>
+                    <option value="CAD">CAD - Canadian Dollar</option>
+                    <option value="MXN">MXN - Mexican Peso</option>
+                    <option value="BRL">BRL - Brazilian Real</option>
+                    <option value="ARS">ARS - Argentine Peso</option>
+                    <option value="CLP">CLP - Chilean Peso</option>
+                    <option value="PHP">PHP - Filipino Peso</option>
                   </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Paid</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={paid}
+                    onChange={e => setPaid(Number(e.target.value) || 0)}
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Balance</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={balance}
+                    readOnly
+                    className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-gray-100 dark:bg-black/30 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm"
+                  />
                 </div>
               </div>
             </div>
@@ -471,21 +630,82 @@ export default function AdminPage() {
           {/* WAYBILL MODE: Smart Waybill Form */}
           {type === 'WAYBILL' && (
             <div className="mb-8">
-              <SmartWaybillForm 
-                onGenerated={(pdfUrl, waybillData) => {
-                  // Add to generated list
-                  const doc: DocumentConfig = {
-                    companyName: SKYSHIP_CONFIG.name,
-                    logoUrl: SKYSHIP_CONFIG.logo,
-                    type: 'WAYBILL',
-                    items: [],
-                    origin: waybillData.portOfDeparture || 'LAGOS/LOS',
-                    destination: waybillData.portOfDestination || 'Unknown',
-                    trackingNumber: waybillData.waybillNumber || 'N/A',
-                    status: 'PENDING',
-                    waybillData: waybillData,
+              <SmartWaybillForm
+                onGenerated={async (pdfUrl, waybillData) => {
+                  const now = new Date().toISOString();
+                  const waybillNumber = waybillData.waybillNumber || waybillData.trackingNumber || '';
+                  const origin = waybillData.portOfDeparture || waybillData.airportOfDeparture || 'Not provided';
+                  const destination = waybillData.portOfDestination || waybillData.airportOfDestination || 'Not provided';
+                  const lifecycleEvents = [
+                    {
+                      status: 'Shipment Received',
+                      location: origin,
+                      description: 'Shipment has been received for processing.',
+                      eventTime: now,
+                    },
+                    {
+                      status: 'Shipment Created',
+                      location: origin,
+                      description: 'Waybill has been created successfully.',
+                      eventTime: new Date(Date.now() + 1000).toISOString(),
+                    },
+                  ];
+
+                  const serviceTypeLabel =
+                    waybillData.serviceTypeString ||
+                    (waybillData.serviceType?.doorToDoor
+                      ? 'Door to Door'
+                      : waybillData.serviceType?.worldMail
+                      ? 'World Mail'
+                      : waybillData.serviceType?.domestic
+                      ? 'Domestic'
+                      : waybillData.serviceType?.diplomaticCourier
+                      ? 'Diplomatic Courier'
+                      : waybillData.serviceType?.repairReturn
+                      ? 'Repair Return'
+                      : 'Not provided');
+
+                  const waybillDoc = {
+                    ...waybillData,
+                    waybillNumber,
+                    senderName: waybillData.senderName || waybillData.shipperName || '',
+                    senderPhone: waybillData.senderPhone || waybillData.shipperPhone || '',
+                    senderAddress: waybillData.senderAddress || waybillData.shipperAddress || '',
+                    receiverName: waybillData.receiverName || waybillData.consigneeName || '',
+                    receiverPhone: waybillData.receiverPhone || waybillData.consigneePhone || waybillData.receiverTelephone || '',
+                    receiverAddress: waybillData.receiverAddress || waybillData.consigneeAddress || '',
+                    origin,
+                    destination,
+                    shipmentMode: waybillData.transportMode || waybillData.shipmentMode || '',
+                    serviceType: serviceTypeLabel,
+                    serviceTypeString: serviceTypeLabel,
+                    parcelDescription: waybillData.cargoDescription || waybillData.packageDescription || waybillData.contents || '',
+                    cargoDescription: waybillData.cargoDescription || '',
+                    packageDescription: waybillData.packageDescription || waybillData.cargoDescription || '',
+                    quantity: waybillData.totalPieces || waybillData.pieces || waybillData.numberOfPieces || 1,
+                    totalPieces: waybillData.totalPieces || waybillData.pieces || waybillData.numberOfPieces || 1,
+                    weight: waybillData.totalWeight || waybillData.weight || 0,
+                    totalWeight: waybillData.totalWeight || waybillData.weight || 0,
+                    dimensions: waybillData.dimensions || '',
+                    currentStatus: 'Shipment Created',
+                    currentLocation: origin,
+                    bookingDate: waybillData.dateOfIssue || now,
+                    estimatedDeliveryDate: waybillData.estimatedArrivalDate || waybillData.estimatedDeliveryDate || waybillData.arrivalDate || '',
+                    deliveredDate: '',
+                    paymentStatus: waybillData.paymentStatus || 'Not provided',
+                    specialInstructions: waybillData.specialInstructions || '',
+                    createdAt: waybillData.createdAt || now,
+                    updatedAt: now,
+                    trackingEvents: lifecycleEvents,
+                  };
+                  try {
+                    const { createWaybill } = await import('@/services/waybillService');
+                    await createWaybill(waybillDoc);
+                    alert(`Waybill ${waybillNumber} saved successfully.`);
+                  } catch (err) {
+                    alert('Error saving waybill.');
+                    console.error(err);
                   }
-                  setGenerated(prev => [doc, ...prev.slice(0, 4)])
                 }}
               />
             </div>
@@ -508,8 +728,8 @@ export default function AdminPage() {
               </div>
               <div className="space-y-3">
                 {items.map((item, index) => (
-                  <div key={index} className="flex gap-4 items-end bg-gray-50 dark:bg-gray-900 p-4 rounded-xl">
-                    <div className="flex-1">
+                  <div key={index} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-end bg-gray-50 dark:bg-gray-900 p-4 rounded-xl">
+                    <div className="sm:col-span-2 lg:col-span-5">
                       <label className="block text-sm font-medium mb-1">Description</label>
                       <input
                         type="text"
@@ -519,17 +739,17 @@ export default function AdminPage() {
                         placeholder="Item description"
                       />
                     </div>
-                    <div className="w-20">
+                    <div className="sm:col-span-1 lg:col-span-2">
                       <label className="block text-sm font-medium mb-1">Qty</label>
                       <input
                         type="number"
-                        min="1"
+                        min="0"
                         value={item.quantity}
-                        onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                        onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
                         className="w-full px-3 py-2 border rounded-lg text-center"
                       />
                     </div>
-                    <div className="w-24">
+                    <div className="sm:col-span-1 lg:col-span-2">
                       <label className="block text-sm font-medium mb-1">Unit Price</label>
                       <input
                         type="number"
@@ -540,16 +760,21 @@ export default function AdminPage() {
                         placeholder="0.00"
                       />
                     </div>
-                    <div className="w-20">
+                    <div className="sm:col-span-1 lg:col-span-2">
                       <label className="block text-sm font-medium mb-1">Total</label>
-                      <div className="px-3 py-2 bg-gray-100 rounded-lg text-right font-mono">
-                        {(item.quantity * (item.unitPrice || 0)).toFixed(2)}
-                      </div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={item.total || (item.quantity * (item.unitPrice || 0))}
+                        onChange={(e) => updateItem(index, 'total', parseFloat(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border rounded-lg text-right font-mono"
+                        placeholder="0.00"
+                      />
                     </div>
                     <button
                       onClick={() => removeItem(index)}
                       type="button"
-                      className="px-3 py-2 text-red-600 hover:text-red-800"
+                      className="sm:col-span-2 lg:col-span-1 px-3 py-2 text-red-600 hover:text-red-800 border border-red-200 rounded-lg bg-white"
                     >
                       Remove
                     </button>
@@ -633,6 +858,18 @@ export default function AdminPage() {
                 placeholder="Enter terms, conditions, or additional notes..."
               />
             </div>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Receipt Description / Memo
+              </label>
+              <textarea
+                value={receiptDescription}
+                onChange={(e) => setReceiptDescription(e.target.value)}
+                rows={2}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white/80 dark:bg-black/30 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition backdrop-blur-sm resize-none"
+                placeholder="e.g., Payment for chemical supplies - Invoice #12345"
+              />
+            </div>
           </div>
 
           {/* Totals */}
@@ -640,7 +877,7 @@ export default function AdminPage() {
             <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-xl">
               <div className="flex justify-between mb-2">
                 <span>Subtotal:</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>{getCurrencySymbol(currency)}{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between mb-4">
                 <label>Tax Rate (%): </label>
@@ -656,14 +893,23 @@ export default function AdminPage() {
               </div>
               <div className="flex justify-between text-lg font-semibold mb-4">
                 <span>Tax:</span>
-                <span>${tax.toFixed(2)}</span>
+                <span>{getCurrencySymbol(currency)}{tax.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between mb-4">
+                <span>Paid:</span>
+                <span>{getCurrencySymbol(currency)}{paid.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between mb-4">
+                <span>Balance:</span>
+                <span>{getCurrencySymbol(currency)}{balance.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-2xl font-bold text-gray-900 dark:text-white">
                 <span>Total:</span>
-                <span>${total.toFixed(2)}</span>
+                <span>{getCurrencySymbol(currency)}{total.toFixed(2)}</span>
               </div>
             </div>
           )}
+
 
           {/* Generate & Print Buttons */}
           <div className="flex flex-col gap-4 mt-8">

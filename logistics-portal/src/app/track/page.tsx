@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useTranslation } from '@/lib/i18n/useTranslation'
+import { COMPANY_CONTACT } from '@/lib/constants'
 
 export default function TrackPage() {
   const router = useRouter()
   const { t } = useTranslation()
   const [trackingNumber, setTrackingNumber] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const whatsappHref = `https://wa.me/${COMPANY_CONTACT.phone.replace(/\D/g, '')}`
 
   const handleTrack = (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,8 +30,8 @@ export default function TrackPage() {
       <header className="fixed top-0 left-0 right-0 z-50 glass-nav-10px">
         <div className="max-w-7xl mx-auto flex items-center justify-between h-16 sm:h-20 px-3 sm:px-6 lg:px-8">
           {/* Logo - Fixed margins for mobile */}
-          <Link href="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-xl overflow-hidden shadow-lg shadow-[#9DC400]/30 flex-shrink-0">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="relative w-12 h-12 sm:w-16 sm:h-16 rounded-xl overflow-hidden shadow-lg shadow-[#9DC400]/30 shrink-0">
               <Image
                 src="/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png"
                 alt="Skyship Logistics Logo"
@@ -168,6 +170,18 @@ export default function TrackPage() {
                 {t.hero.example}
               </p>
             </form>
+
+            <div className="mt-6 rounded-xl border border-[#3d587f] bg-[#102744]/85 px-4 py-3 text-sm text-[#d6e3f4]">
+              <span className="text-[#9DC400] font-semibold">WhatsApp Support:</span>{' '}
+              <a
+                href={whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-white hover:text-[#9DC400] transition"
+              >
+                {COMPANY_CONTACT.phone}
+              </a>
+            </div>
 
             {/* Back to Home */}
             <div className="mt-8">

@@ -355,7 +355,7 @@ export interface DocumentConfig {
   receiptNumber?: string;
   dateOfIssue?: string;
   paymentMethod?: 'Cash' | 'Bank Transfer' | 'POS' | 'Credit Card';
-  currency?: 'USD' | 'EUR' | 'GBP' | 'NGN' | 'KES' | 'GHS';
+  currency?: 'USD' | 'EUR' | 'GBP' | 'CHF' | 'SEK' | 'NOK' | 'DKK' | 'PLN' | 'CZK' | 'JPY' | 'CNY' | 'INR' | 'KRW' | 'SGD' | 'HKD' | 'CAD' | 'MXN' | 'BRL' | 'ARS' | 'CLP' | 'PHP';
   signatureUrl?: string;
   applyStamp?: boolean;
   notes?: string;
@@ -364,9 +364,74 @@ export interface DocumentConfig {
   customerName?: string;
   customerAddress?: string;
   taxRate?: number;
+  paid?: number;
+  balance?: number;
   description?: string; // NEW: Receipt description/memo
   transferMode?: string; // NEW: Mode of transfer (e.g., Bank Transfer - Wire)
   receiptDescription?: string; // NEW: Detailed receipt description
   // Waybill specific data
   waybillData?: WaybillFormData;
+}
+
+// Unified tracking event shape stored in Firestore
+export interface TrackingEventRecord {
+  status: string;
+  location: string;
+  description: string;
+  eventTime: string;
+}
+
+// Firestore waybill document shape (supports both old and new fields)
+export interface StoredWaybill extends Omit<Partial<WaybillFormData>, 'serviceType'> {
+  waybillNumber: string;
+  trackingNumber?: string;
+
+  senderName?: string;
+  senderPhone?: string;
+  senderAddress?: string;
+  shipperName?: string;
+  shipperPhone?: string;
+  shipperAddress?: string;
+
+  receiverName?: string;
+  receiverPhone?: string;
+  receiverAddress?: string;
+  consigneeName?: string;
+  consigneePhone?: string;
+  consigneeAddress?: string;
+
+  origin?: string;
+  destination?: string;
+  portOfDeparture?: string;
+  portOfDestination?: string;
+
+  shipmentMode?: string;
+  transportMode?: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR';
+  serviceType?: string | WaybillFormData['serviceType'];
+  serviceTypeString?: string;
+
+  parcelDescription?: string;
+  cargoDescription?: string;
+  packageDescription?: string;
+  quantity?: number;
+  pieces?: number;
+  totalPieces?: number;
+  weight?: number;
+  totalWeight?: number;
+  dimensions?: string;
+  specialInstructions?: string;
+
+  currentStatus?: string;
+  currentLocation?: string;
+  paymentStatus?: string;
+  bookingDate?: string;
+  estimatedDeliveryDate?: string;
+  estimatedArrivalDate?: string;
+  deliveredDate?: string;
+
+  createdAt?: string;
+  updatedAt?: string;
+  dateOfIssue?: string;
+
+  trackingEvents?: TrackingEventRecord[];
 }

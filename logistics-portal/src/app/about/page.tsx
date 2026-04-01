@@ -356,7 +356,7 @@ export default function AboutPage() {
               <h4 className="text-white font-semibold mb-4">Contact</h4>
               <ul className="space-y-2 text-white/60 text-sm">
                 <li className="flex items-center"><MailIcon /> contact@skyshiplogistics.com</li>
-                <li className="flex items-center"><PhoneIcon /> +44 7935 244329</li>
+                <li className="flex items-center"><PhoneIcon /> +447352998900</li>
                 <li className="flex items-center"><MapPinIcon /> GOLDEN CROSS HOUSE, 456-458 STRAND</li>
               </ul>
             </div>

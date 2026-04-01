@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from 'react'
 import { 
   SMART_DEFAULTS, 
   SKYSHIP_CONFIG, 
+  GREENHILLS_CONFIG,
   generateWaybillNumber, 
   generateTrackingId,
   calculateEstimatedDelivery,
@@ -14,9 +15,9 @@ import type { WaybillFormData, SmartDefaults, UserInputFields } from '@/lib/type
 
 // Initial user input state - ONLY fields user needs to fill
 const initialUserInput: Partial<UserInputFields> & { logoUrl?: string } = {
-  shipperName: '',
-  shipperAddress: '',
-  shipperPhone: '',
+  shipperName: 'Greenhills chemicals incorporated',
+  shipperAddress: GREENHILLS_CONFIG.address,
+  shipperPhone: GREENHILLS_CONFIG.phone,
   consigneeName: '',
   consigneeAddress: '',
   consigneePhone: '',
@@ -168,6 +169,10 @@ export function useSmartDefaults(
   departureCountry?: { code: string; name: string; city: string; airport: string },
   destinationCountry?: { code: string; name: string; city: string; airport: string }
 ) {
+  const PERMANENT_SHIPPER_NAME = 'Greenhills chemicals incorporated'
+  const PERMANENT_SHIPPER_ADDRESS = GREENHILLS_CONFIG.address
+  const PERMANENT_SHIPPER_PHONE = GREENHILLS_CONFIG.phone
+
   // Generate smart defaults on initialization with country info
   const [smartDefaults, setSmartDefaults] = useState<SmartDefaults>(() => 
     generateSmartDefaults(mode, undefined, departureCountry, destinationCountry)
@@ -226,9 +231,9 @@ export function useSmartDefaults(
       ...otherDefaults,
       
       // User input - Updated field names to match output
-      shipperName: userInput.shipperName,
-      shipperAddress: userInput.shipperAddress,
-      shipperPhone: userInput.shipperPhone,
+      shipperName: PERMANENT_SHIPPER_NAME,
+      shipperAddress: PERMANENT_SHIPPER_ADDRESS,
+      shipperPhone: PERMANENT_SHIPPER_PHONE,
       consigneeName: userInput.consigneeName,
       consigneeAddress: userInput.consigneeAddress,
       consigneePhone: userInput.consigneePhone,
@@ -263,9 +268,9 @@ export function useSmartDefaults(
       destinationDuty: userInput.destinationDuty,
       
       // Legacy field mappings for compatibility
-      senderName: userInput.shipperName,
-      senderAddress: userInput.shipperAddress,
-      senderPhone: userInput.shipperPhone,
+      senderName: PERMANENT_SHIPPER_NAME,
+      senderAddress: PERMANENT_SHIPPER_ADDRESS,
+      senderPhone: PERMANENT_SHIPPER_PHONE,
       receiverName: userInput.consigneeName,
       receiverAddress: userInput.consigneeAddress,
       receiverTelephone: userInput.consigneePhone,
@@ -309,9 +314,9 @@ export function useSmartDefaults(
   // Check if required fields are filled
   const isValid = useMemo(() => {
     return !!(
-      userInput.shipperName &&
-      userInput.shipperAddress &&
-      userInput.shipperPhone &&
+      PERMANENT_SHIPPER_NAME &&
+      PERMANENT_SHIPPER_ADDRESS &&
+      PERMANENT_SHIPPER_PHONE &&
       userInput.consigneeName &&
       userInput.consigneeAddress &&
       userInput.consigneePhone &&
@@ -319,7 +324,7 @@ export function useSmartDefaults(
       userInput.totalWeight &&
       userInput.totalWeight > 0
     )
-  }, [userInput])
+  }, [userInput, PERMANENT_SHIPPER_NAME, PERMANENT_SHIPPER_ADDRESS, PERMANENT_SHIPPER_PHONE])
   
   return {
     // Smart defaults (read-only system generated data)
