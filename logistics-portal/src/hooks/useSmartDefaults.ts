@@ -4,20 +4,23 @@ import { useState, useCallback, useMemo } from 'react'
 import { 
   SMART_DEFAULTS, 
   SKYSHIP_CONFIG, 
-  GREENHILLS_CONFIG,
   generateWaybillNumber, 
   generateTrackingId,
   calculateEstimatedDelivery,
   formatWaybillDate,
-  TRANSPORT_CONFIG 
+  TRANSPORT_CONFIG,
+  normalizeTransportMode,
 } from '@/lib/constants'
 import type { WaybillFormData, SmartDefaults, UserInputFields } from '@/lib/types'
 
+type TransportMode = 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR'
+type CountryOption = { code: string; name: string; city: string; airport: string }
+
 // Initial user input state - ONLY fields user needs to fill
-const initialUserInput: Partial<UserInputFields> & { logoUrl?: string } = {
-  shipperName: 'Greenhills chemicals incorporated',
-  shipperAddress: GREENHILLS_CONFIG.address,
-  shipperPhone: GREENHILLS_CONFIG.phone,
+const initialUserInput: Partial<UserInputFields> = {
+  shipperName: '',
+  shipperAddress: '',
+  shipperPhone: '',
   consigneeName: '',
   consigneeAddress: '',
   consigneePhone: '',
@@ -36,66 +39,128 @@ const initialUserInput: Partial<UserInputFields> & { logoUrl?: string } = {
   destinationDuty: 0,
   receiverCity: '',
   routeNumber: '',
-  logoUrl: '',
+  paymentStatus: 'NOT PAID',
   // Routing fields - initialized empty, will be set by country dropdowns
   portOfDeparture: '',
   portOfDestination: '',
 }
 
-// Generate IATA code based on transport mode
-function getIataCodeForMode(mode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR'): string {
+function getSeaPortCode(country: CountryOption): string {
+  const cityLetters = country.city.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3).padEnd(3, 'X')
+  return `${country.code}${cityLetters}`
+}
+
+function getModeLocationCode(country: CountryOption, mode: TransportMode): string {
   switch (mode) {
     case 'AIR':
-      // Random airline code
-      const airlineCodes = ['EK', 'LH', 'AF', 'CX', 'KE', 'TK', 'QR', 'EY', 'SQ', 'BA']
-      return airlineCodes[Math.floor(Math.random() * airlineCodes.length)]
+      return country.airport
     case 'SEA':
-      // Shipping company code
-      const shippingCodes = ['MAEU', 'MSCU', 'CMAU', 'HLCU', 'EVER', 'COSU', 'ONEY', 'HMMU', 'PILU']
-      return shippingCodes[Math.floor(Math.random() * shippingCodes.length)]
+      return getSeaPortCode(country)
     case 'LAND':
-      return 'TRUCK'
+      return `${country.code}-LND`
     case 'DOOR_TO_DOOR':
-      return 'DTD'
+      return `${country.code}-DTD`
     default:
-      return 'SKY'
+      return country.airport
   }
 }
 
-// Generate carrier name based on transport mode
-function getCarrierNameForMode(mode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR'): string {
+function formatModeLocation(country: CountryOption, mode: TransportMode): string {
+  return `${country.city}/${getModeLocationCode(country, mode)}`
+}
+
+function randomDigits(length: number): string {
+  let output = ''
+  for (let i = 0; i < length; i += 1) {
+    output += Math.floor(Math.random() * 10).toString()
+  }
+  return output
+}
+
+type CarrierProfile = {
+  carrierName: string
+  transportCode: string
+  carrierReference: string
+}
+
+function getCarrierProfileForMode(mode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR'): CarrierProfile {
   switch (mode) {
-    case 'AIR':
-      const airlines = ['Emirates', 'Lufthansa', 'Air France', 'Cathay Pacific', 'Korean Air', 'Turkish Airlines', 'Qatar Airways']
-      return airlines[Math.floor(Math.random() * airlines.length)]
-    case 'SEA':
-      const shippers = ['Maersk', 'MSC', 'CMA CGM', 'Hapag-Lloyd', 'Evergreen', 'COSCO']
-      return shippers[Math.floor(Math.random() * shippers.length)]
+    case 'AIR': {
+      const airCarriers = [
+        { name: 'Emirates SkyCargo', designator: 'EK', awbPrefix: '176' },
+        { name: 'Lufthansa Cargo', designator: 'LH', awbPrefix: '020' },
+        { name: 'Air France KLM Cargo', designator: 'AF', awbPrefix: '057' },
+        { name: 'Cathay Pacific Cargo', designator: 'CX', awbPrefix: '160' },
+        { name: 'Qatar Airways Cargo', designator: 'QR', awbPrefix: '157' },
+        { name: 'Turkish Cargo', designator: 'TK', awbPrefix: '235' },
+        { name: 'British Airways World Cargo', designator: 'BA', awbPrefix: '125' },
+        { name: 'Singapore Airlines Cargo', designator: 'SQ', awbPrefix: '618' },
+      ] as const
+      const selected = airCarriers[Math.floor(Math.random() * airCarriers.length)]
+      return {
+        carrierName: selected.name,
+        transportCode: `${selected.awbPrefix}-${randomDigits(8)}`,
+        carrierReference: `${selected.designator}${randomDigits(3)}-${randomDigits(4)}`,
+      }
+    }
+    case 'SEA': {
+      const seaCarriers = [
+        { name: 'Maersk Line', scac: 'MAEU' },
+        { name: 'MSC', scac: 'MSCU' },
+        { name: 'CMA CGM', scac: 'CMDU' },
+        { name: 'Hapag-Lloyd', scac: 'HLCU' },
+        { name: 'Ocean Network Express', scac: 'ONEY' },
+        { name: 'COSCO Shipping', scac: 'COSU' },
+      ] as const
+      const selected = seaCarriers[Math.floor(Math.random() * seaCarriers.length)]
+      return {
+        carrierName: selected.name,
+        transportCode: selected.scac,
+        carrierReference: `${selected.scac}${randomDigits(7)}`,
+      }
+    }
     case 'LAND':
-      return 'Land Transport Partner'
+      return {
+        carrierName: 'Land Transport Partner',
+        transportCode: `ROAD-${randomDigits(4)}`,
+        carrierReference: `ROAD-${randomDigits(6)}`,
+      }
     case 'DOOR_TO_DOOR':
-      return 'Door to Door Service'
+      return {
+        carrierName: 'Door to Door Service',
+        transportCode: `DTD-${randomDigits(4)}`,
+        carrierReference: `DTD-${randomDigits(6)}`,
+      }
     default:
-      return 'Skyship Logistics'
+      return {
+        carrierName: 'Skyship Logistics',
+        transportCode: SKYSHIP_CONFIG.iataCode,
+        carrierReference: SMART_DEFAULTS.carrierReference,
+      }
   }
 }
 
 // Generate complete smart defaults based on transport mode
 export function generateSmartDefaults(
-  mode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR' = 'AIR',
+  mode: TransportMode = 'AIR',
   destination?: string,
-  departureCountry?: { code: string; name: string; city: string; airport: string },
-  destinationCountry?: { code: string; name: string; city: string; airport: string }
+  departureCountry?: CountryOption,
+  destinationCountry?: CountryOption
 ): SmartDefaults {
   const now = new Date()
   const departureDate = formatWaybillDate(now)
   const estimatedArrival = calculateEstimatedDelivery(departureDate, mode, destination)
+  const carrierProfile = getCarrierProfileForMode(mode)
   
   // Use provided countries or defaults
   const departureCity = departureCountry?.city || SMART_DEFAULTS.airportOfDeparture
-  const departureCode = departureCountry?.airport || SMART_DEFAULTS.airportOfDepartureCode
+  const departureCode = departureCountry ? getModeLocationCode(departureCountry, mode) : SMART_DEFAULTS.airportOfDepartureCode
   const destinationCity = destinationCountry?.city || destination || SMART_DEFAULTS.defaultDestination
-  const destinationCode = destinationCountry?.airport || (destination ? getAirportCode(destination) : SMART_DEFAULTS.defaultDestinationCode)
+  const destinationCode = destinationCountry
+    ? getModeLocationCode(destinationCountry, mode)
+    : destination
+    ? getLocationCode(destination, mode)
+    : SMART_DEFAULTS.defaultDestinationCode
   
   return {
     // System Generated Identifiers
@@ -109,16 +174,16 @@ export function generateSmartDefaults(
     estimatedArrivalDate: formatWaybillDate(estimatedArrival),
     
     // Auto-filled Carrier Info - DYNAMIC based on transport mode
-    issuingCarrier: `Skyship Logistics / ${getCarrierNameForMode(mode)}`,
-    carrierReference: `${SKYSHIP_CONFIG.carrierCode}-${Date.now().toString(36).toUpperCase().slice(-6)}`,
-    iataCode: getIataCodeForMode(mode),
+    issuingCarrier: `Skyship Logistics / ${carrierProfile.carrierName}`,
+    carrierReference: carrierProfile.carrierReference,
+    iataCode: carrierProfile.transportCode,
     agentName: SMART_DEFAULTS.agentName,
     agentCity: departureCity,
     
     // Auto-filled Location Info - DYNAMIC based on country selection
-    airportOfDeparture: departureCity,
+    airportOfDeparture: `${departureCity}/${departureCode}`,
     airportOfDepartureCode: departureCode,
-    airportOfDestination: destinationCity,
+    airportOfDestination: `${destinationCity}/${destinationCode}`,
     airportOfDestinationCode: destinationCode,
     
     // Auto-filled Service Info
@@ -137,7 +202,7 @@ export function generateSmartDefaults(
 }
 
 // Helper to get airport code from destination name
-function getAirportCode(destination: string): string {
+function getLocationCode(destination: string, mode: TransportMode): string {
   const codeMap: Record<string, string> = {
     'london': 'LHR',
     'new york': 'JFK',
@@ -160,31 +225,33 @@ function getAirportCode(destination: string): string {
   }
   
   const normalized = destination.toLowerCase().trim()
-  return codeMap[normalized] || 'XXX'
+  const airportCode = codeMap[normalized] || 'XXX'
+  if (mode === 'AIR') return airportCode
+  if (mode === 'SEA') return `ZZ${airportCode.slice(0, 3)}`
+  if (mode === 'LAND') return `ZZ-LND`
+  return `ZZ-DTD`
 }
 
 // Hook for managing smart defaults
 export function useSmartDefaults(
-  mode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR' = 'AIR',
-  departureCountry?: { code: string; name: string; city: string; airport: string },
-  destinationCountry?: { code: string; name: string; city: string; airport: string }
+  mode: TransportMode = 'AIR',
+  departureCountry?: CountryOption,
+  destinationCountry?: CountryOption
 ) {
-  const PERMANENT_SHIPPER_NAME = 'Greenhills chemicals incorporated'
-  const PERMANENT_SHIPPER_ADDRESS = GREENHILLS_CONFIG.address
-  const PERMANENT_SHIPPER_PHONE = GREENHILLS_CONFIG.phone
+  const safeMode = normalizeTransportMode(mode) as TransportMode
 
   // Generate smart defaults on initialization with country info
   const [smartDefaults, setSmartDefaults] = useState<SmartDefaults>(() => 
-    generateSmartDefaults(mode, undefined, departureCountry, destinationCountry)
+    generateSmartDefaults(safeMode, undefined, departureCountry, destinationCountry)
   )
   
   // User input state - ONLY the fields user needs to fill
-  const [userInput, setUserInput] = useState<Partial<UserInputFields> & { logoUrl?: string }>(initialUserInput)
+  const [userInput, setUserInput] = useState<Partial<UserInputFields>>(initialUserInput)
   
   // Update transport mode and regenerate defaults
-  const updateTransportMode = useCallback((newMode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR') => {
-    setSmartDefaults(generateSmartDefaults(newMode, userInput.destinationOverride))
-  }, [userInput.destinationOverride])
+  const updateTransportMode = useCallback((newMode: TransportMode) => {
+    setSmartDefaults(generateSmartDefaults(newMode, userInput.destinationOverride, departureCountry, destinationCountry))
+  }, [userInput.destinationOverride, departureCountry, destinationCountry])
   
   // Update user input fields
   const updateUserInput = useCallback(<K extends keyof UserInputFields>(
@@ -198,7 +265,7 @@ export function useSmartDefaults(
       setSmartDefaults(prev => ({
         ...prev,
         airportOfDestination: value,
-        airportOfDestinationCode: getAirportCode(value),
+        airportOfDestinationCode: getLocationCode(value, prev.transportMode),
         // Recalculate estimated arrival based on new destination
         estimatedArrivalDate: formatWaybillDate(
           calculateEstimatedDelivery(prev.departureDate, prev.transportMode, value)
@@ -209,31 +276,33 @@ export function useSmartDefaults(
   
   // Regenerate waybill number (if user wants a new one)
   const regenerateWaybillNumber = useCallback(() => {
-    setSmartDefaults(prev => ({
+    setSmartDefaults((prev) => {
+      const carrierProfile = getCarrierProfileForMode(prev.transportMode)
+      return {
       ...prev,
       waybillNumber: generateWaybillNumber(prev.transportMode),
       trackingNumber: generateTrackingId(prev.transportMode),
-    }))
+      carrierReference: carrierProfile.carrierReference,
+      iataCode: carrierProfile.transportCode,
+      }
+    })
   }, [])
   
   // Combine smart defaults with user input for complete form data
   const completeFormData: WaybillFormData = useMemo(() => {
-    // Destructure to exclude serviceType string (we'll add legacy structure separately)
-    const { serviceType, ...otherDefaults } = smartDefaults
-    
     // Determine departure and destination - STRICTLY use user input only, no fallbacks to defaults
     // This ensures dashboard selections are the only source of truth
-    const departure = userInput.portOfDeparture || ''
-    const destination = userInput.portOfDestination || ''
+    const departure = userInput.portOfDeparture || (departureCountry ? formatModeLocation(departureCountry, smartDefaults.transportMode) : '')
+    const destination = userInput.portOfDestination || (destinationCountry ? formatModeLocation(destinationCountry, smartDefaults.transportMode) : '')
     
     return {
-      // Smart defaults (system generated) - excluding serviceType
-      ...otherDefaults,
+      // Smart defaults (system generated)
+      ...smartDefaults,
       
       // User input - Updated field names to match output
-      shipperName: PERMANENT_SHIPPER_NAME,
-      shipperAddress: PERMANENT_SHIPPER_ADDRESS,
-      shipperPhone: PERMANENT_SHIPPER_PHONE,
+      shipperName: userInput.shipperName,
+      shipperAddress: userInput.shipperAddress,
+      shipperPhone: userInput.shipperPhone,
       consigneeName: userInput.consigneeName,
       consigneeAddress: userInput.consigneeAddress,
       consigneePhone: userInput.consigneePhone,
@@ -268,14 +337,15 @@ export function useSmartDefaults(
       destinationDuty: userInput.destinationDuty,
       
       // Legacy field mappings for compatibility
-      senderName: PERMANENT_SHIPPER_NAME,
-      senderAddress: PERMANENT_SHIPPER_ADDRESS,
-      senderPhone: PERMANENT_SHIPPER_PHONE,
+      senderName: userInput.shipperName,
+      senderAddress: userInput.shipperAddress,
+      senderPhone: userInput.shipperPhone,
       receiverName: userInput.consigneeName,
       receiverAddress: userInput.consigneeAddress,
       receiverTelephone: userInput.consigneePhone,
       receiverCity: userInput.receiverCity,
       routeNumber: userInput.routeNumber,
+      paymentStatus: userInput.paymentStatus || 'NOT PAID',
       packageDescription: userInput.cargoDescription, // Legacy alias
       weight: userInput.totalWeight,
       pieces: userInput.totalPieces,
@@ -291,8 +361,8 @@ export function useSmartDefaults(
       },
       
       // Company Logo
-      logoUrl: userInput.logoUrl,
-      senderLogoUrl: userInput.logoUrl,
+      logoUrl: SKYSHIP_CONFIG.logo,
+      senderLogoUrl: SKYSHIP_CONFIG.logo,
       
       // Additional metadata
       transportMode: smartDefaults.transportMode,
@@ -303,20 +373,20 @@ export function useSmartDefaults(
       arrivalDate: smartDefaults.estimatedArrivalDate,
       status: smartDefaults.status,
     }
-  }, [smartDefaults, userInput])
+  }, [smartDefaults, userInput, departureCountry, destinationCountry])
   
   // Reset all data
   const reset = useCallback(() => {
-    setSmartDefaults(generateSmartDefaults(mode))
+    setSmartDefaults(generateSmartDefaults(safeMode, undefined, departureCountry, destinationCountry))
     setUserInput(initialUserInput)
-  }, [mode])
+  }, [safeMode, departureCountry, destinationCountry])
   
   // Check if required fields are filled
   const isValid = useMemo(() => {
     return !!(
-      PERMANENT_SHIPPER_NAME &&
-      PERMANENT_SHIPPER_ADDRESS &&
-      PERMANENT_SHIPPER_PHONE &&
+      userInput.shipperName &&
+      userInput.shipperAddress &&
+      userInput.shipperPhone &&
       userInput.consigneeName &&
       userInput.consigneeAddress &&
       userInput.consigneePhone &&
@@ -324,7 +394,7 @@ export function useSmartDefaults(
       userInput.totalWeight &&
       userInput.totalWeight > 0
     )
-  }, [userInput, PERMANENT_SHIPPER_NAME, PERMANENT_SHIPPER_ADDRESS, PERMANENT_SHIPPER_PHONE])
+  }, [userInput])
   
   return {
     // Smart defaults (read-only system generated data)
@@ -346,7 +416,7 @@ export function useSmartDefaults(
     isValid,
     
     // Transport config
-    transportConfig: TRANSPORT_CONFIG[mode],
+    transportConfig: TRANSPORT_CONFIG[safeMode],
   }
 }
 

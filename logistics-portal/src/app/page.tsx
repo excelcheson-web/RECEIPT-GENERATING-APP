@@ -159,7 +159,7 @@ export default function Home() {
             <Link href="/about" className="nav-link text-sm">{t.nav.about}</Link>
             <a href="#services" className="nav-link text-sm">{t.nav.services}</a>
             <Link href="/track" className="nav-link text-sm">{t.nav.track}</Link>
-            <Link href="/contact" className="nav-link text-sm">{t.nav.contact}</Link>
+            <a href="/contact" className="nav-link text-sm">{t.nav.contact}</a>
           </nav>
 
           {/* Right Side: Language + Profile + Mobile Menu */}
@@ -231,13 +231,13 @@ export default function Home() {
                 >
                   {t.nav.track}
                 </Link>
-                <Link 
+                <a 
                   href="/contact" 
                   className="nav-link text-sm py-2"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   {t.nav.contact}
-                </Link>
+                </a>
                 {/* Language Switcher in Mobile Menu */}
                 <div className="border-t border-white/20 pt-2 mt-2">
                   <span className="text-white/60 text-xs uppercase tracking-wider mb-2 block">Language</span>
@@ -251,7 +251,7 @@ export default function Home() {
 
       {/* Hero Section - NOW USING TRANSLATIONS */}
       <section id="track" className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 pt-20">
-        <div className="max-w-6xl mx-auto w-full">
+        <div className="max-w-7xl mx-auto w-full">
           <div className="hero-glass-panel p-8 sm:p-12 lg:p-16 max-w-3xl mx-auto text-center">
             {/* Main Headline */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white text-high-contrast mb-6 leading-tight">
@@ -583,12 +583,12 @@ export default function Home() {
               >
                 {t.cta.learnMore}
               </Link>
-              <Link
+              <a
                 href="/contact"
                 className="px-8 py-4 text-lg font-semibold border border-white/30 rounded-2xl text-white hover:bg-white/10 transition inline-block text-center"
               >
                 {t.cta.contactSales}
-              </Link>
+              </a>
             </div>
           </div>
         </div>

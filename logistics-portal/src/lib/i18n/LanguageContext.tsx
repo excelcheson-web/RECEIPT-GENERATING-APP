@@ -15,28 +15,24 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 const STORAGE_KEY = 'skyship-language';
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [currentLang, setCurrentLang] = useState<LanguageCode>('EN');
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
+  const [currentLang, setCurrentLang] = useState<LanguageCode>(() => {
+    if (typeof window === 'undefined') return 'EN';
     const stored = localStorage.getItem(STORAGE_KEY) as LanguageCode;
-    if (stored && languages.find(l => l.code === stored)) {
-      setCurrentLang(stored);
+    if (stored && languages.find((l) => l.code === stored)) {
+      return stored;
     }
-  }, []);
+    return 'EN';
+  });
 
   useEffect(() => {
-    if (mounted) {
-      localStorage.setItem(STORAGE_KEY, currentLang);
-      // Update html lang and dir attributes
-      const lang = languages.find(l => l.code === currentLang);
-      if (lang) {
-        document.documentElement.lang = currentLang.toLowerCase();
-        document.documentElement.dir = lang.dir || 'ltr';
-      }
+    localStorage.setItem(STORAGE_KEY, currentLang);
+    // Update html lang and dir attributes
+    const lang = languages.find((l) => l.code === currentLang);
+    if (lang) {
+      document.documentElement.lang = currentLang.toLowerCase();
+      document.documentElement.dir = lang.dir || 'ltr';
     }
-  }, [currentLang, mounted]);
+  }, [currentLang]);
 
   const setLanguage = (lang: LanguageCode) => {
     setCurrentLang(lang);

@@ -1,93 +1,40 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server'
+import {
+  getWaybillByNumber,
+  getWaybillErrorMessage,
+  isWaybillServiceError,
+  normalizeWaybillLookupInput,
+} from '@/services/waybillService'
 
-export interface TrackingData {
-  id: string;
-  status: 'received' | 'in-transit' | 'sort-facility' | 'out-delivery' | 'delivered';
-  origin: string;
-  destination: string;
-  estimatedDelivery: string;
-  lastUpdated: string;
-  timeline: {
-    step: string;
-    label: string;
-    date: string;
-    completed: boolean;
-    active: boolean;
-  }[];
-}
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const waybillNumber = normalizeWaybillLookupInput(id || '')
 
-const mockTrackings: Record<string, TrackingData> = {
-  'SK-1234-5678': {
-    id: 'SK-1234-5678',
-    status: 'in-transit',
-    origin: 'Nairobi',
-    destination: 'Mombasa',
-    estimatedDelivery: '2026-01-06',
-    lastUpdated: '2026-01-02T14:30:00Z',
-    timeline: [
-      { step: 'received', label: 'Package Received', date: '2026-01-01', completed: true, active: false },
-      { step: 'in-transit', label: 'In Transit', date: '2026-01-02', completed: true, active: true },
-      { step: 'sort-facility', label: 'Arrived at Sort Facility', date: '2026-01-04', completed: false, active: false },
-      { step: 'out-delivery', label: 'Out for Delivery', date: '2026-01-05', completed: false, active: false },
-    ]
-  },
-  'SK-8765-4321': {
-    id: 'SK-8765-4321',
-    status: 'sort-facility',
-    origin: 'Kisumu',
-    destination: 'Eldoret',
-    estimatedDelivery: '2026-01-05',
-    lastUpdated: '2026-01-03T09:15:00Z',
-    timeline: [
-      { step: 'received', label: 'Package Received', date: '2026-01-01', completed: true, active: false },
-      { step: 'in-transit', label: 'In Transit', date: '2026-01-02', completed: true, active: false },
-      { step: 'sort-facility', label: 'Arrived at Sort Facility', date: '2026-01-03', completed: true, active: true },
-      { step: 'out-delivery', label: 'Out for Delivery', date: '2026-01-05', completed: false, active: false },
-    ]
-  },
-  'SKY-ABCD-2026': {
-    id: 'SKY-ABCD-2026',
-    status: 'out-delivery',
-    origin: 'Mombasa',
-    destination: 'Nairobi',
-    estimatedDelivery: '2026-01-04',
-    lastUpdated: '2026-01-04T08:00:00Z',
-    timeline: [
-      { step: 'received', label: 'Package Received', date: '2026-01-01', completed: true, active: false },
-      { step: 'in-transit', label: 'In Transit', date: '2026-01-02', completed: true, active: false },
-      { step: 'sort-facility', label: 'Arrived at Sort Facility', date: '2026-01-03', completed: true, active: false },
-      { step: 'out-delivery', label: 'Out for Delivery', date: '2026-01-04', completed: true, active: true },
-    ]
-  },
-  'SKY-TEST-9999': {
-    id: 'SKY-TEST-9999',
-    status: 'delivered',
-    origin: 'Nairobi',
-    destination: 'Kisumu',
-    estimatedDelivery: '2026-01-03',
-    lastUpdated: '2026-01-03T16:45:00Z',
-    timeline: [
-      { step: 'received', label: 'Package Received', date: '2026-01-01', completed: true, active: false },
-      { step: 'in-transit', label: 'In Transit', date: '2026-01-02', completed: true, active: false },
-      { step: 'sort-facility', label: 'Arrived at Sort Facility', date: '2026-01-03', completed: true, active: false },
-      { step: 'out-delivery', label: 'Out for Delivery', date: '2026-01-03', completed: true, active: false },
-    ]
-  }
-};
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-
-  if (!id || !mockTrackings[id]) {
-    return NextResponse.json(
-      { error: 'Tracking number not found' },
-      { status: 404 }
-    );
+  if (!waybillNumber) {
+    return NextResponse.json({ error: 'Tracking number is required' }, { status: 400 })
   }
 
-  return NextResponse.json(mockTrackings[id]);
-}
+  try {
+    const result = await getWaybillByNumber(waybillNumber)
+    if (!result) {
+      return NextResponse.json({ error: 'Tracking number not found' }, { status: 404 })
+    }
 
+    return NextResponse.json(result)
+  } catch (error) {
+    console.error('[api/track] failed to load waybill', error)
+    if (isWaybillServiceError(error)) {
+      if (error.kind === 'invalid_input') {
+        return NextResponse.json({ error: getWaybillErrorMessage(error, 'tracking lookup') }, { status: 400 })
+      }
+      if (error.kind === 'permission' || error.kind === 'config') {
+        return NextResponse.json({ error: getWaybillErrorMessage(error, 'tracking lookup') }, { status: 403 })
+      }
+      if (error.kind === 'timeout' || error.kind === 'network' || error.kind === 'unavailable') {
+        return NextResponse.json({ error: getWaybillErrorMessage(error, 'tracking lookup') }, { status: 503 })
+      }
+    }
+
+    return NextResponse.json({ error: getWaybillErrorMessage(error, 'tracking lookup') }, { status: 500 })
+  }
+}

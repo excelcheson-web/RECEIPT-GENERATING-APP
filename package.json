@@ -1,4 +1,10 @@
 {
+  "scripts": {
+    "dev": "npm --prefix logistics-portal run dev",
+    "build": "npm --prefix logistics-portal run build",
+    "start": "npm --prefix logistics-portal run start",
+    "lint": "npm --prefix logistics-portal run lint"
+  },
   "dependencies": {
     "firebase": "^12.11.0"
   }

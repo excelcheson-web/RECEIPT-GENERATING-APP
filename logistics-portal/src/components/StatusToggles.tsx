@@ -1,7 +1,5 @@
 'use client'
 
-import { useState } from 'react'
-
 interface StatusTogglesProps {
   isFragile: boolean
   isExpress: boolean
@@ -97,7 +95,6 @@ export function StatusToggle({
   icon,
   label,
   description,
-  activeColor = '#9DC400',
   className = ''
 }: {
   checked: boolean
@@ -105,7 +102,6 @@ export function StatusToggle({
   icon: React.ReactNode
   label: string
   description?: string
-  activeColor?: string
   className?: string
 }) {
   return (

@@ -1,113 +1,139 @@
-import React from 'react';
+import React from 'react'
+import { computeRuntimeTrackingState } from '@/lib/trackingAutomation'
 
 export interface TrackingEvent {
-  status: string;
-  location: string;
-  description: string;
-  eventTime: string;
+  status: string
+  location: string
+  description: string
+  eventTime: string
+  isHold?: boolean
 }
 
 interface TrackingTimelineProps {
-  events: TrackingEvent[];
-  currentStatus?: string;
+  events: TrackingEvent[]
+  currentStatus?: string
 }
 
-const STANDARD_STAGES = [
-  'Shipment Received',
-  'Shipment Created',
-  'Processing',
-  'Dispatched',
-  'In Transit',
-  'Arrived at Destination Hub',
-  'Out for Delivery',
-  'Delivered',
-] as const;
+type TimelineState = 'completed' | 'current' | 'upcoming' | 'hold'
 
-function stageIndexFromStatus(status: string): number {
-  const value = status.toLowerCase();
-  if (value.includes('received')) return 0;
-  if (value.includes('created')) return 1;
-  if (value.includes('processing')) return 2;
-  if (value.includes('dispatch')) return 3;
-  if (value.includes('transit')) return 4;
-  if (value.includes('arrived') || value.includes('destination hub')) return 5;
-  if (value.includes('out for delivery')) return 6;
-  if (value.includes('delivered')) return 7;
-  return -1;
+interface TimelineRow extends TrackingEvent {
+  key: string
+  state: TimelineState
+}
+
+function formatTimestamp(eventTime: string): string {
+  const parsed = Date.parse(eventTime)
+  if (Number.isNaN(parsed)) return 'Pending'
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(parsed)
+}
+
+function getBadgeClasses(state: TimelineState): string {
+  if (state === 'completed') return 'bg-emerald-500/20 text-emerald-200 border-emerald-400/50'
+  if (state === 'current') return 'bg-lime-400/20 text-lime-200 border-lime-300/60'
+  if (state === 'hold') return 'bg-amber-500/20 text-amber-100 border-amber-300/60'
+  return 'bg-slate-500/20 text-slate-300 border-slate-400/40'
+}
+
+function getNodeClasses(state: TimelineState): string {
+  if (state === 'completed') return 'border-emerald-400 bg-emerald-500 text-[#10253f]'
+  if (state === 'current') return 'border-lime-300 bg-lime-300 text-[#0e2138] shadow-[0_0_0_4px_rgba(163,230,53,0.15)]'
+  if (state === 'hold') return 'border-amber-300 bg-amber-300 text-[#0e2138] shadow-[0_0_0_4px_rgba(251,191,36,0.2)]'
+  return 'border-slate-500 bg-[#1b3552] text-slate-300'
+}
+
+function getCardClasses(state: TimelineState): string {
+  if (state === 'completed') return 'border-emerald-500/40 bg-[#16314b]'
+  if (state === 'current') return 'border-lime-300/60 bg-[#1a3755]'
+  if (state === 'hold') return 'border-amber-300/60 bg-[#3f341d]'
+  return 'border-[#355275] bg-[#132c47]'
+}
+
+function buildTimelineRows(events: TrackingEvent[], currentStatus?: string): TimelineRow[] {
+  const runtime = computeRuntimeTrackingState(events)
+  const statusHasHold = (currentStatus || '').toLowerCase().includes('hold')
+
+  return runtime.events.map((event, index) => {
+    let state: TimelineState = 'upcoming'
+
+    if (runtime.activeEventIndex >= 0) {
+      if (index < runtime.activeEventIndex) {
+        state = 'completed'
+      } else if (index === runtime.activeEventIndex) {
+        state = runtime.isOnHold || statusHasHold ? 'hold' : 'current'
+      }
+    }
+
+    return {
+      ...event,
+      key: `${event.status}-${event.eventTime}-${index}`,
+      state,
+    }
+  })
 }
 
 export const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ events, currentStatus }) => {
-  const sortedEvents = [...(events || [])].sort((a, b) => {
-    const ta = Date.parse(a.eventTime || '')
-    const tb = Date.parse(b.eventTime || '')
-    const sa = Number.isNaN(ta) ? 0 : ta
-    const sb = Number.isNaN(tb) ? 0 : tb
-    return sa - sb
-  });
-
-  const latestEvent = sortedEvents.length > 0 ? sortedEvents[sortedEvents.length - 1] : null;
-  const currentStageIndex = Math.max(
-    stageIndexFromStatus(currentStatus || ''),
-    stageIndexFromStatus(latestEvent?.status || '')
-  );
-
-  const stageEventMap = new Map<number, TrackingEvent>();
-  sortedEvents.forEach((event) => {
-    const index = stageIndexFromStatus(event.status || '');
-    if (index >= 0 && !stageEventMap.has(index)) {
-      stageEventMap.set(index, event);
-    }
-  });
+  const rows = buildTimelineRows(events || [], currentStatus)
 
   return (
-    <div className="timeline-container rounded-2xl p-6 mb-6 border border-[#3d587f] bg-[#0f2340] shadow-xl shadow-black/30">
-      <div className="font-bold text-xl mb-5 text-white">Shipment Progress</div>
+    <section className="logistics-card tracking-grid-overlay p-5 sm:p-6">
+      <div className="mb-5 flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-white">Tracking Timeline</h3>
+        <span className="logistics-muted text-xs">Operational milestone feed</span>
+      </div>
 
-      <ol className="relative border-l-2 border-lime-400/60 pl-4">
-        {STANDARD_STAGES.map((stage, idx) => {
-          const stageEvent = stageEventMap.get(idx);
-          const isCompleted = currentStageIndex >= 0 && idx < currentStageIndex;
-          const isCurrent = currentStageIndex >= 0 && idx === currentStageIndex;
-          const isPending = !isCompleted && !isCurrent;
+      <div className="mb-4 flex flex-wrap gap-2 text-[11px]">
+        <span className="tracking-legend tracking-legend-completed">Completed</span>
+        <span className="tracking-legend tracking-legend-current">Current</span>
+        <span className="tracking-legend tracking-legend-hold">On Hold</span>
+        <span className="tracking-legend tracking-legend-upcoming">Upcoming</span>
+      </div>
 
-          return (
-            <li key={stage} className="mb-5 ml-4 relative">
-              <span
-                className={`absolute -left-[1.15rem] top-1 flex items-center justify-center w-7 h-7 rounded-full border text-xs font-bold ${
-                  isCompleted
-                    ? 'bg-lime-500 border-lime-400 text-[#0b1b33]'
-                    : isCurrent
-                    ? 'bg-[#1f3e67] border-lime-400 text-lime-300'
-                    : 'bg-[#112947] border-[#4d6485] text-[#86a0bf]'
-                }`}
-              >
-                {isCompleted ? '✓' : isCurrent ? '●' : idx + 1}
-              </span>
+      {rows.length === 0 ? (
+        <div className="rounded-xl border border-slate-400/30 bg-[#132c47] px-4 py-3 text-sm text-slate-200">
+          Timeline will appear once shipment milestones are available.
+        </div>
+      ) : (
+        <ol className="relative pl-7">
+          <div className="absolute left-3 top-1 bottom-1 w-px bg-gradient-to-b from-lime-300/60 via-[#5f7ea5] to-[#3a5678]" />
 
-              <div
-                className={`rounded-xl border p-3 ${
-                  isCompleted
-                    ? 'bg-[#16324f] border-lime-500/50'
-                    : isCurrent
-                    ? 'bg-[#1a3a5f] border-lime-400'
-                    : 'bg-[#132d4a] border-[#3f5778]'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className={`font-semibold ${isCurrent ? 'text-lime-300' : isCompleted ? 'text-lime-200' : 'text-[#c0d0e4]'}`}>{stage}</span>
-                  <span className="text-xs text-[#9db3cf]">{stageEvent?.eventTime || ''}</span>
-                </div>
-                <div className="text-sm text-[#d5e0ee]">{stageEvent?.location || (isPending ? 'Pending' : 'In progress')}</div>
-                <div className="text-xs text-[#9db3cf] mt-1">{stageEvent?.description || (isPending ? 'Awaiting this stage.' : 'Shipment progressing normally.')}</div>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+          {rows.map((row) => {
+            const badgeLabel = row.state === 'completed' ? 'Completed' : row.state === 'current' ? 'Current' : row.state === 'hold' ? 'On Hold' : 'Upcoming'
+            return (
+              <li key={row.key} className="relative mb-4 last:mb-0">
+                <span
+                  className={`absolute left-[-1.2rem] top-5 inline-flex h-5 w-5 items-center justify-center rounded-full border text-[11px] font-bold ${getNodeClasses(
+                    row.state
+                  )}`}
+                  aria-hidden="true"
+                >
+                  {row.state === 'completed' ? 'C' : row.state === 'current' ? 'N' : row.state === 'hold' ? 'H' : ''}
+                </span>
 
-      {sortedEvents.length === 0 && (
-        <div className="text-sm text-[#9db3cf] mt-2">No tracking events found yet. Showing standard shipment stages.</div>
+                <article className={`rounded-xl border px-4 py-3 ${getCardClasses(row.state)}`}>
+                  <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-white">{row.status}</p>
+                    <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${getBadgeClasses(row.state)}`}>
+                      {badgeLabel}
+                    </span>
+                  </div>
+                  <p className="text-xs font-medium text-[#b7cde7]">{row.location}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-[#95adc9]">{row.description}</p>
+                  <p className="mt-2 text-[11px] text-[#7f99b7]">{formatTimestamp(row.eventTime)}</p>
+                </article>
+              </li>
+            )
+          })}
+        </ol>
       )}
-    </div>
-  );
-};
+    </section>
+  )
+}
+

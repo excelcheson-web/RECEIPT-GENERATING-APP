@@ -91,35 +91,65 @@ export const TRANSPORT_CONFIG = {
   }
 } as const
 
+export type TransportModeKey = keyof typeof TRANSPORT_CONFIG
+const DEFAULT_TRANSPORT_MODE: TransportModeKey = 'AIR'
+
+export function normalizeTransportMode(mode: unknown): TransportModeKey {
+  if (typeof mode !== 'string') return DEFAULT_TRANSPORT_MODE
+
+  const normalized = mode
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_')
+  const compact = normalized.replace(/_/g, '')
+
+  if (normalized in TRANSPORT_CONFIG) {
+    return normalized as TransportModeKey
+  }
+
+  if (compact === 'DOORTODOOR' || compact === 'DTD') {
+    return 'DOOR_TO_DOOR'
+  }
+
+  if (compact === 'AIR' || compact === 'SEA' || compact === 'LAND') {
+    return compact as TransportModeKey
+  }
+
+  return DEFAULT_TRANSPORT_MODE
+}
+
 // Generate waybill number based on transport mode with timestamp
-export function generateWaybillNumber(mode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR' = 'AIR'): string {
+export function generateWaybillNumber(mode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR' | string = 'AIR'): string {
   const year = new Date().getFullYear()
   const timestamp = Date.now().toString(36).toUpperCase().slice(-4)
   const random = Math.floor(100 + Math.random() * 900)
-  const prefix = TRANSPORT_CONFIG[mode].prefix
+  const safeMode = normalizeTransportMode(mode)
+  const prefix = TRANSPORT_CONFIG[safeMode].prefix
   return `${prefix}-${year}-${timestamp}${random}`
 }
 
 // Generate tracking ID that works with tracking app
-export function generateTrackingId(mode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR' = 'AIR'): string {
+export function generateTrackingId(mode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR' | string = 'AIR'): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
   let random = ''
   for (let i = 0; i < 4; i++) {
     random += chars.charAt(Math.floor(Math.random() * chars.length))
   }
   const year = new Date().getFullYear()
-  const prefix = TRANSPORT_CONFIG[mode].trackingPrefix
+  const safeMode = normalizeTransportMode(mode)
+  const prefix = TRANSPORT_CONFIG[safeMode].trackingPrefix
   return `SKY-${prefix}-${random}-${year}`
 }
 
 // Calculate estimated delivery date based on transport mode and destination
 export function calculateEstimatedDelivery(
   departureDate: string, 
-  mode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR',
+  mode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR' | string,
   destination?: string
 ): Date {
   const departure = new Date(departureDate)
-  const baseDays = TRANSPORT_CONFIG[mode].baseTransitDays
+  const safeMode = normalizeTransportMode(mode)
+  const baseDays = TRANSPORT_CONFIG[safeMode].baseTransitDays
   
   // Add extra days for certain destinations (simplified logic)
   let extraDays = 0
@@ -238,10 +268,12 @@ export function getRandomShippingCompany(): string {
 }
 
 // Helper function to get carrier display name based on transport mode
-export function getCarrierDisplayName(transportMode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR'): string {
-  if (transportMode === 'AIR') {
+export function getCarrierDisplayName(transportMode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR' | string): string {
+  const safeMode = normalizeTransportMode(transportMode)
+
+  if (safeMode === 'AIR') {
     return `Skyship Logistics / ${getRandomAirline()}`
-  } else if (transportMode === 'SEA') {
+  } else if (safeMode === 'SEA') {
     return `Skyship Logistics / ${getRandomShippingCompany()}`
   } else {
     return 'Skyship Logistics'

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 
 const faqs = [
   {
@@ -102,12 +103,12 @@ export default function FAQsPage() {
           <p className="text-white/70 mb-4">
             Still have questions?
           </p>
-          <a
-            href="#contact"
+          <Link
+            href="/contact"
             className="skyship-button px-8 py-3 inline-block font-bold"
           >
             Contact Support
-          </a>
+          </Link>
         </div>
       </div>
     </div>

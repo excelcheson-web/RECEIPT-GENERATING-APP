@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import jsPDF from 'jspdf'
 import JsBarcode from 'jsbarcode'
 import type { WaybillFormData } from '@/lib/types'
@@ -11,14 +11,30 @@ interface WaybillTemplateProps {
   onComplete?: (pdfUrl: string) => void
 }
 
-// Professional Waybill color scheme - Faded lemon green + soft blue
+interface WaybillPdfItem {
+  noOfPcs?: number
+  pieces?: number
+  quantity?: number
+  grossWeight?: number
+  weight?: number
+  typeOfPkg?: string
+  description?: string
+  cargoDescription?: string
+  dimensions?: {
+    length?: number
+    width?: number
+    height?: number
+  }
+}
+
+// Skyship brand color scheme
 const COLORS = {
-  primary: '#CDDC39',       // Soft lemon green for headers
-  secondary: '#1E3A8A',     // Deep blue for borders and text
-  border: '#DCDCDC',         // Light grey borders
-  background: '#FAFAFA',     // Off-white background
-  textDark: '#1F2937',       // Dark text
-  textLight: '#6B7280',      // Light text
+  primary: '#9DC400',       // Skyship lemon green
+  secondary: '#001F3F',     // Skyship deep blue
+  border: '#9DC400',        // Brand-aligned border
+  background: '#F7FAEF',    // Subtle green-tinted paper
+  textDark: '#001F3F',      // Brand blue for main text
+  textLight: '#4A5F76',     // Muted blue-gray for secondary text
   white: '#FFFFFF',
 }
 
@@ -108,7 +124,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   }
 
   // ========== HEADER SECTION ==========
-  const headerHeight = 30  // Increased from 25 to 30 to prevent overlap
+  const headerHeight = 38
   
   // Left: Official Stamp Box - Positioned higher to prevent overlap with shipper box
   const stampBoxWidth = 35
@@ -158,6 +174,8 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   const titleWidth = pdf.getTextWidth(titleText)
   const titleX = pageWidth / 2
   const titleY = currentY + 8
+  const headerAddressLine = 'GOLDEN CROSS HOUSE, 456-458 STRAND, LONDON, UK'
+  const headerPhoneLine = 'PHONE: +447352998900'
   
   // Position logo to the left of the title with spacing - SIGNIFICANTLY INCREASED SIZE
   const logoWidth = 55  // Increased from 40 to 55 to cover more space
@@ -186,6 +204,11 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   
   pdf.setFontSize(11)
   pdf.text(title, pageWidth / 2, currentY + 21, { align: 'center' })
+
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(8)
+  pdf.text(headerAddressLine, pageWidth / 2, currentY + 26, { align: 'center' })
+  pdf.text(headerPhoneLine, pageWidth / 2, currentY + 30, { align: 'center' })
 
   // Right: Barcode and Waybill Number
   const barcodeCanvas = document.createElement('canvas')
@@ -220,7 +243,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   currentY += headerHeight + 4
 
   // ========== ROW 1: Shipper | Consignee | Routing ==========
-  const row1Height = 42
+  const row1Height = 52
   const colWidth = contentWidth / 3
   
   // Helper to draw section box
@@ -276,7 +299,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
     [
       { label: 'Name:', value: data.senderName || 'N/A' },
       { label: 'Address:', value: data.senderAddress || 'N/A' },
-      { label: 'Phone:', value: data.senderPhone || data.senderTelephone || 'N/A' },
+      { label: 'Phone:', value: data.senderPhone || (data.senderTelephone as string | undefined) || 'N/A' },
       { label: 'Account:', value: data.senderAccountNo || data.accountNumber || 'N/A' },
     ]
   )
@@ -291,7 +314,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
     [
       { label: 'Name:', value: data.receiverName || 'N/A' },
       { label: 'Address:', value: data.receiverAddress || 'N/A' },
-      { label: 'Phone:', value: data.receiverPhone || data.receiverTelephone || 'N/A' },
+      { label: 'Phone:', value: data.receiverPhone || (data.receiverTelephone as string | undefined) || 'N/A' },
       { label: 'City:', value: data.receiverCity || 'N/A' },
     ]
   )
@@ -300,6 +323,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   const departure = data.portOfDeparture || data.airportOfDeparture || 'LAGOS/LOS'
   const destination = data.portOfDestination || data.airportOfDestination || 'N/A'
   const departureDate = data.departureDate || new Date().toISOString().split('T')[0]
+  const transportCodeLabel = data.transportMode === 'SEA' ? 'SCAC:' : data.transportMode === 'AIR' ? 'IATA:' : 'Code:'
   
   drawSection(
     margin + colWidth * 2,
@@ -311,7 +335,9 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
       { label: 'Departure:', value: departure },
       { label: 'Destination:', value: destination },
       { label: 'Date:', value: departureDate },
+      { label: transportCodeLabel, value: data.iataCode || 'N/A' },
       { label: 'Route:', value: data.routeNumber || 'N/A' },
+      { label: 'Payment:', value: data.paymentStatus || 'NOT PAID' },
     ]
   )
 
@@ -354,7 +380,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   })
   
   // Table data rows
-  const items = data.items || data.waybillItems || []
+  const items = (data.items || data.waybillItems || []) as WaybillPdfItem[]
   let rowY = tableY + 7
   
   if (items.length === 0) {
@@ -364,7 +390,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
     pdf.setFontSize(9)
     pdf.text('No items added', margin + 5, rowY + 8)
   } else {
-    items.slice(0, 4).forEach((item: any, index: number) => {
+    items.slice(0, 4).forEach((item, index) => {
       if (index > 0) {
         pdf.setDrawColor(COLORS.border)
         pdf.setLineWidth(0.3)
@@ -433,7 +459,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   pdf.text('CHARGES & FEES (USD)', chargesX + 3, currentY + 6)
   
   // Calculate charges
-  const totalWeight = items.reduce((sum: number, item: any) => sum + (item.grossWeight || item.weight || 0), 0)
+  const totalWeight = items.reduce((sum, item) => sum + (item.grossWeight || item.weight || 0), 0)
   const baseFreight = data.baseFreight || Math.round((totalWeight * 2.5) * 100) / 100
   const insurance = data.insurance || Math.round((totalWeight * 0.8) * 100) / 100
   const tax = data.airportTaxVat || Math.round((totalWeight * 0.5 + 5) * 100) / 100
@@ -495,7 +521,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   pdf.setFontSize(9)
   pdf.text('SHIPMENT TOTALS', margin + 3, currentY + 5)
   
-  const totalPieces = items.reduce((sum: number, item: any) => sum + (item.noOfPcs || item.pieces || item.quantity || 1), 0)
+  const totalPieces = items.reduce((sum, item) => sum + (item.noOfPcs || item.pieces || item.quantity || 1), 0)
   
   pdf.setTextColor(COLORS.textLight)
   pdf.setFont('helvetica', 'bold')
@@ -684,7 +710,7 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
 
 // React component wrapper
 export function WaybillTemplate({ data, onComplete }: WaybillTemplateProps) {
-  const generatePDF = async () => {
+  const generatePDF = useCallback(async () => {
     try {
       const pdfUrl = await generateWaybillPDF(data)
       onComplete?.(pdfUrl)
@@ -698,12 +724,12 @@ export function WaybillTemplate({ data, onComplete }: WaybillTemplateProps) {
       console.error('Error generating waybill PDF:', error)
       alert('Error generating waybill. Please try again.')
     }
-  }
+  }, [data, onComplete])
 
   // Auto-generate on mount
   useEffect(() => {
     generatePDF()
-  }, [data])
+  }, [generatePDF])
 
   return null
 }

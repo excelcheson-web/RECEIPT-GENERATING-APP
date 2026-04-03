@@ -44,7 +44,7 @@ export function LineItemsManager({ items, onChange }: LineItemsManagerProps) {
     }
   }, [localItems, onChange])
 
-  const updateItem = useCallback((index: number, field: keyof LineItem, value: any) => {
+  const updateItem = useCallback(<K extends keyof LineItem,>(index: number, field: K, value: LineItem[K]) => {
     const newItems = [...localItems]
     newItems[index] = { ...newItems[index], [field]: value }
     onChange(newItems)
@@ -133,7 +133,7 @@ export function LineItemsManager({ items, onChange }: LineItemsManagerProps) {
                 </label>
                 <select
                   value={item.type}
-                  onChange={(e) => updateItem(index, 'type', e.target.value)}
+                  onChange={(e) => updateItem(index, 'type', e.target.value as LineItem['type'])}
                   className="w-full px-3 py-2 text-sm border border-white/20 rounded-lg bg-white/10 text-white focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition"
                 >
                   {packageTypes.map(type => (

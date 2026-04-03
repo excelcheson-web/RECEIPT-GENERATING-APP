@@ -34,6 +34,8 @@ export interface NormalizedWaybill {
   totalPieces: number | null
   totalWeight: number | null
   routeNumber: string
+  iataCode: string
+  carrierReference: string
   lastUpdated: string
   trackingEvents: TrackingEventRecord[]
   additionalFields: Record<string, string>
@@ -104,6 +106,7 @@ function normalizeTrackingEvents(raw: StoredWaybill): TrackingEventRecord[] {
     location: asString(event?.location) || 'Unknown Location',
     description: asString(event?.description) || '',
     eventTime: asString((event as unknown as { eventTime?: unknown })?.eventTime) || asString(event?.date),
+    isHold: false,
   }))
 
   const combined = [...events, ...mappedTransit]
@@ -113,6 +116,7 @@ function normalizeTrackingEvents(raw: StoredWaybill): TrackingEventRecord[] {
       location: asString(event?.location) || 'Unknown Location',
       description: asString(event?.description) || 'No description provided',
       eventTime: asString(event?.eventTime) || new Date(0).toISOString(),
+      isHold: Boolean(event?.isHold),
     }))
 
   combined.sort((a, b) => {
@@ -133,8 +137,8 @@ export function normalizeWaybill(raw: StoredWaybill): NormalizedWaybill {
   const waybillNumber = pickFirst(raw.waybillNumber, raw.trackingNumber)
   const trackingNumber = pickFirst(raw.trackingNumber, waybillNumber)
 
-  const currentStatus = pickFirst(lastEvent?.status, raw.currentStatus, raw.status) || 'Not available'
-  const currentLocation = pickFirst(lastEvent?.location, raw.currentLocation, raw.origin, raw.portOfDeparture) || 'Not available'
+  const currentStatus = pickFirst(raw.currentStatus, lastEvent?.status, raw.status) || 'Not available'
+  const currentLocation = pickFirst(raw.currentLocation, lastEvent?.location, raw.origin, raw.portOfDeparture) || 'Not available'
 
   const bookingDate = pickFirst(raw.bookingDate, raw.dateOfIssue, raw.createdAt) || 'Not available'
   const estimatedDeliveryDate = pickFirst(raw.estimatedDeliveryDate, raw.estimatedArrivalDate, raw.arrivalDate) || 'Not available'
@@ -142,7 +146,7 @@ export function normalizeWaybill(raw: StoredWaybill): NormalizedWaybill {
 
   const shipmentMode = pickFirst(raw.shipmentMode, raw.transportMode) || 'Not available'
   const serviceType = pickFirst(raw.serviceTypeString, normalizeServiceType(raw.serviceType), asString(raw.serviceType)) || 'Not available'
-  const paymentStatus = pickFirst(raw.paymentStatus) || 'Not available'
+  const paymentStatus = pickFirst(raw.paymentStatus) || 'NOT PAID'
 
   const senderName = pickFirst(raw.senderName, raw.shipperName) || 'Not available'
   const senderPhone = pickFirst(raw.senderPhone, raw.shipperPhone, raw.receiverTelephone) || 'Not available'
@@ -172,6 +176,8 @@ export function normalizeWaybill(raw: StoredWaybill): NormalizedWaybill {
   const totalPieces = asNumber(raw.totalPieces) ?? asNumber(raw.pieces) ?? asNumber(raw.quantity)
   const totalWeight = asNumber(raw.totalWeight) ?? asNumber(raw.weight)
   const routeNumber = pickFirst(raw.routeNumber) || 'Not available'
+  const iataCode = pickFirst(raw.iataCode) || 'Not available'
+  const carrierReference = pickFirst(raw.carrierReference) || 'Not available'
 
   const lastUpdated = pickFirst(raw.updatedAt, raw.createdAt) || 'Not available'
 
@@ -184,6 +190,7 @@ export function normalizeWaybill(raw: StoredWaybill): NormalizedWaybill {
     'destination', 'portOfDestination', 'airportOfDestination', 'parcelDescription', 'cargoDescription',
     'packageDescription', 'contents', 'quantity', 'totalPieces', 'pieces', 'numberOfPieces', 'weight',
     'totalWeight', 'dimensions', 'specialInstructions', 'dateOfIssue', 'estimatedArrivalDate', 'routeNumber',
+    'iataCode', 'carrierReference',
     'createdAt', 'updatedAt', 'status'
   ])
 
@@ -231,6 +238,8 @@ export function normalizeWaybill(raw: StoredWaybill): NormalizedWaybill {
     totalPieces,
     totalWeight,
     routeNumber,
+    iataCode,
+    carrierReference,
     lastUpdated,
     trackingEvents,
     additionalFields,

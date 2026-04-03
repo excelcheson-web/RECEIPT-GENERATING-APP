@@ -3,6 +3,20 @@
 import React, { useState, useEffect } from 'react';
 import emailjs from '@emailjs/browser';
 
+type EmailSendError = {
+  text?: string;
+  message?: string;
+};
+
+function getErrorMessage(error: unknown): string {
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as EmailSendError;
+    return candidate.text || candidate.message || 'Please try again later.';
+  }
+
+  return 'Please try again later.';
+}
+
 export default function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState('');
@@ -51,10 +65,11 @@ export default function ContactForm() {
 
       setStatus('Success! Your message has been sent and a confirmation email is on its way.');
       form.reset();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('EmailJS Error:', error);
-      console.error('Error details:', error.text || error.message || 'Unknown error');
-      setStatus(`Oops! Something went wrong: ${error.text || error.message || 'Please try again later.'}`);
+      const errorMessage = getErrorMessage(error);
+      console.error('Error details:', errorMessage);
+      setStatus(`Oops! Something went wrong: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }

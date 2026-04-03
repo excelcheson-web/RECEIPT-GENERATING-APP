@@ -3,19 +3,64 @@
 import { useState, useMemo, useCallback } from 'react'
 import { useSmartDefaults } from '@/hooks/useSmartDefaults'
 import { AddressBookDropdown } from './AddressBookDropdown'
-import { WeightStepper } from './WeightStepper'
 import { StatusToggles } from './StatusToggles'
 import { LineItemsManager } from './LineItemsManager'
 import { generateWaybillPDF } from './WaybillTemplate'
-import { getCarrierDisplayName, COUNTRIES, GREENHILLS_CONFIG } from '@/lib/constants'
+import { getCarrierDisplayName, COUNTRIES } from '@/lib/constants'
 import type { WaybillFormData } from '@/lib/types'
+import {
+  type DeliveryType,
+  type GeneratedTimelineEvent,
+  type ShipmentTimelineInput,
+  generateLocalShipmentTimeline,
+} from '@/lib/localShipmentTimeline'
 
 interface SmartWaybillFormProps {
-  onGenerated?: (pdfUrl: string, waybillData: WaybillFormData) => void
+  onGenerated?: (pdfUrl: string, waybillData: WaybillFormData) => void | Promise<void>
 }
 
 // Default line items - defined outside component to maintain stable reference
 const defaultLineItems = [{ description: '', pieces: 1, weight: 0, type: 'Box' as const }]
+const SERVICE_TYPE_OPTIONS = ['Standard', 'Express', 'Priority', 'Economy'] as const
+const ROUTE_MODE_CODE: Record<'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR', string> = {
+  AIR: 'AIR',
+  SEA: 'SEA',
+  LAND: 'LND',
+  DOOR_TO_DOOR: 'DTD',
+}
+const PAYMENT_STATUS_OPTIONS = ['PAID', 'NOT PAID', 'PARTIAL PAYMENT', 'PAYMENT PENDING', 'CASH ON DELIVERY'] as const
+const MODE_TERMINAL_LABEL: Record<'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR', string> = {
+  AIR: 'Airport',
+  SEA: 'Seaport',
+  LAND: 'Land Hub',
+  DOOR_TO_DOOR: 'Service Zone',
+}
+
+type TransportMode = 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR'
+
+function getSeaPortCode(country: typeof COUNTRIES[number]): string {
+  const cityLetters = country.city.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3).padEnd(3, 'X')
+  return `${country.code}${cityLetters}`
+}
+
+function getModeLocationCode(country: typeof COUNTRIES[number], mode: TransportMode): string {
+  switch (mode) {
+    case 'AIR':
+      return country.airport
+    case 'SEA':
+      return getSeaPortCode(country)
+    case 'LAND':
+      return `${country.code}-LND`
+    case 'DOOR_TO_DOOR':
+      return `${country.code}-DTD`
+    default:
+      return country.airport
+  }
+}
+
+function getModeLocation(country: typeof COUNTRIES[number], mode: TransportMode): string {
+  return `${country.city}/${getModeLocationCode(country, mode)}`
+}
 
 // SVG Icons
 const Icons = {
@@ -81,7 +126,7 @@ const Icons = {
 
 export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
   // Transport mode selection
-  const [transportMode, setTransportMode] = useState<'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR'>('AIR')
+  const [transportMode, setTransportMode] = useState<TransportMode>('AIR')
   
   // Country selections
   const [departureCountry, setDepartureCountry] = useState<typeof COUNTRIES[number]>(COUNTRIES[0])
@@ -104,51 +149,146 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
     return getCarrierDisplayName(transportMode)
   }, [transportMode])
 
+  const transportCodeLabel = useMemo(() => {
+    if (transportMode === 'SEA') return 'SCAC Code'
+    if (transportMode === 'AIR') return 'IATA AWB Prefix'
+    return 'Carrier Code'
+  }, [transportMode])
+  const terminalLabel = MODE_TERMINAL_LABEL[transportMode]
+  const routeSymbol = transportMode === 'SEA' ? 'SHIP' : transportMode === 'LAND' ? 'TRUCK' : transportMode === 'DOOR_TO_DOOR' ? 'DOOR' : 'AIR'
+
+  const autoRouteNumber = useMemo(() => {
+    const modeCode = ROUTE_MODE_CODE[transportMode]
+    const departureCode = getModeLocationCode(departureCountry, transportMode) || 'DEP'
+    const destinationCode = getModeLocationCode(destinationCountry, transportMode) || 'DST'
+    const waybillSuffix = (smartDefaults.waybillNumber || 'AUTO').replace(/[^A-Z0-9]/gi, '').slice(-4).toUpperCase() || 'AUTO'
+    return `RT-${modeCode}-${departureCode}-${destinationCode}-${waybillSuffix}`
+  }, [departureCountry, destinationCountry, smartDefaults.waybillNumber, transportMode])
+
   // Local state for UI
   const [isGenerating, setIsGenerating] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   const [generatedPdfUrl, setGeneratedPdfUrl] = useState<string | null>(null)
+  const [serviceType, setServiceType] = useState<(typeof SERVICE_TYPE_OPTIONS)[number]>('Standard')
+  const [deliveryType, setDeliveryType] = useState<DeliveryType>('DOOR_TO_DOOR')
+  const [projectedTimeline, setProjectedTimeline] = useState<GeneratedTimelineEvent[]>(() =>
+    generateLocalShipmentTimeline({
+      shipmentMode: transportMode,
+      serviceType: 'Standard',
+      deliveryType: 'DOOR_TO_DOOR',
+      origin: getModeLocation(departureCountry, transportMode),
+      destination: getModeLocation(destinationCountry, transportMode),
+      departureDate: smartDefaults.dateOfIssue,
+    })
+  )
+
+  const buildTimelineInput = useCallback(
+    (overrides: Partial<ShipmentTimelineInput> = {}): ShipmentTimelineInput => ({
+      shipmentMode: overrides.shipmentMode || transportMode,
+      serviceType: overrides.serviceType || serviceType,
+      deliveryType: overrides.deliveryType || deliveryType,
+      origin: overrides.origin || userInput.portOfDeparture || getModeLocation(departureCountry, transportMode),
+      destination: overrides.destination || userInput.portOfDestination || getModeLocation(destinationCountry, transportMode),
+      departureDate: overrides.departureDate || smartDefaults.dateOfIssue,
+    }),
+    [
+      deliveryType,
+      departureCountry,
+      destinationCountry,
+      serviceType,
+      smartDefaults.dateOfIssue,
+      transportMode,
+      userInput.portOfDeparture,
+      userInput.portOfDestination,
+    ]
+  )
+
+  const regenerateProjectedTimeline = useCallback((overrides: Partial<ShipmentTimelineInput> = {}) => {
+    const next = generateLocalShipmentTimeline(buildTimelineInput(overrides))
+    setProjectedTimeline(next)
+  }, [buildTimelineInput])
 
   // Handle transport mode change
-  const handleTransportModeChange = (mode: 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR') => {
+  const handleTransportModeChange = (mode: TransportMode) => {
     setTransportMode(mode)
     updateTransportMode(mode)
+    const nextOrigin = getModeLocation(departureCountry, mode)
+    const nextDestination = getModeLocation(destinationCountry, mode)
+    updateUserInput('portOfDeparture', nextOrigin)
+    updateUserInput('portOfDestination', nextDestination)
+
+    const syncedDeliveryType: DeliveryType = mode === 'DOOR_TO_DOOR' ? 'DOOR_TO_DOOR' : deliveryType
+    if (mode === 'DOOR_TO_DOOR' && deliveryType !== 'DOOR_TO_DOOR') {
+      setDeliveryType('DOOR_TO_DOOR')
+    }
+    regenerateProjectedTimeline({ shipmentMode: mode, deliveryType: syncedDeliveryType, origin: nextOrigin, destination: nextDestination })
   }
 
   // Handle country changes
   const handleDepartureChange = (countryCode: string) => {
     const country = COUNTRIES.find(c => c.code === countryCode)
     if (country) {
+      const nextOrigin = getModeLocation(country, transportMode)
       setDepartureCountry(country)
       // Update the smart defaults with new departure info
-      updateUserInput('portOfDeparture', `${country.city}/${country.airport}`)
+      updateUserInput('portOfDeparture', nextOrigin)
+      regenerateProjectedTimeline({ origin: nextOrigin })
     }
   }
 
   const handleDestinationChange = (countryCode: string) => {
     const country = COUNTRIES.find(c => c.code === countryCode)
     if (country) {
+      const nextDestination = getModeLocation(country, transportMode)
       setDestinationCountry(country)
       // Update the smart defaults with new destination info
-      updateUserInput('portOfDestination', `${country.city}/${country.airport}`)
+      updateUserInput('portOfDestination', nextDestination)
+      regenerateProjectedTimeline({ destination: nextDestination })
     }
+  }
+
+  const handleServiceTypeChange = (value: (typeof SERVICE_TYPE_OPTIONS)[number]) => {
+    setServiceType(value)
+    regenerateProjectedTimeline({ serviceType: value })
+  }
+
+  const handleDeliveryTypeChange = (value: DeliveryType) => {
+    setDeliveryType(value)
+    regenerateProjectedTimeline({ deliveryType: value })
   }
 
   // Generate waybill
   const handleGenerate = async () => {
     if (!isValid) {
-      alert('Please fill in all required fields: Shipper Name, Consignee Name, and Description')
+      alert('Please fill in all required fields: Shipper info, Consignee info, and Description')
       return
     }
 
     setIsGenerating(true)
     try {
-      const waybillData = completeFormData
+      const localTimelineForWaybill = projectedTimeline.map((event) => ({
+        status: event.status,
+        location: event.location,
+        description: event.description,
+        eventTime: event.eventTime,
+        isHold: event.isHold,
+      }))
+
+      const waybillData: WaybillFormData = {
+        ...completeFormData,
+        paymentStatus: userInput.paymentStatus || 'NOT PAID',
+        routeNumber: autoRouteNumber,
+        serviceTypeString: serviceType,
+        deliveryType,
+        trackingEvents: localTimelineForWaybill,
+      }
       const pdfUrl = await generateWaybillPDF(waybillData)
       
       setGeneratedPdfUrl(pdfUrl)
       setShowPreview(true)
-      onGenerated?.(pdfUrl, waybillData)
+      if (onGenerated) {
+        await onGenerated(pdfUrl, waybillData)
+      }
       
       // Auto-download
       const link = document.createElement('a')
@@ -159,7 +299,8 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       alert(`Waybill ${waybillData.waybillNumber} generated successfully!`)
     } catch (error) {
       console.error('Error generating waybill:', error)
-      alert('Error generating waybill. Please try again.')
+      const message = error instanceof Error ? error.message : 'Error generating waybill. Please try again.'
+      alert(message)
     } finally {
       setIsGenerating(false)
     }
@@ -210,7 +351,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
           ))}
         </div>
         <p className="text-xs text-gray-500 mt-2">
-          Estimated delivery: <span className="font-semibold text-[#001f3f]">{transportConfig.baseTransitDays} days</span> • Speed: {transportConfig.avgSpeedKmh} km/h
+          Estimated delivery: <span className="font-semibold text-[#001f3f]">{transportConfig.baseTransitDays} days</span> | Speed: {transportConfig.avgSpeedKmh} km/h
         </p>
       </div>
 
@@ -234,7 +375,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             <span className="text-white font-semibold text-right">{carrierDisplayName}</span>
           </div>
           <div className="flex justify-between items-center p-2 bg-white/10 rounded-lg">
-            <span className="text-gray-300 font-medium">IATA Code:</span>
+            <span className="text-gray-300 font-medium">{transportCodeLabel}:</span>
             <span className="font-mono text-white font-semibold">{smartDefaults.iataCode}</span>
           </div>
           <div className="flex justify-between items-center p-2 bg-white/10 rounded-lg">
@@ -242,14 +383,24 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             <span className="text-[#9DC400] font-bold uppercase">{smartDefaults.status}</span>
           </div>
           <div className="flex justify-between items-center p-2 bg-white/10 rounded-lg md:col-span-2">
+            <span className="text-gray-300 font-medium">Payment Status:</span>
+            <select
+              value={userInput.paymentStatus || 'NOT PAID'}
+              onChange={(e) => updateUserInput('paymentStatus', e.target.value as typeof PAYMENT_STATUS_OPTIONS[number])}
+              className="w-56 rounded-lg border border-white/30 bg-white/20 px-3 py-1 text-right text-white focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400]"
+            >
+              {PAYMENT_STATUS_OPTIONS.map((option) => (
+                <option key={option} value={option} className="text-gray-900">
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex justify-between items-center p-2 bg-white/10 rounded-lg md:col-span-2">
             <span className="text-gray-300 font-medium">Route Number:</span>
-            <input
-              type="text"
-              value={userInput.routeNumber || ''}
-              onChange={(e) => updateUserInput('routeNumber', e.target.value)}
-              className="px-3 py-1 bg-white/20 border border-white/30 rounded-lg text-white font-semibold text-right focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition w-48"
-              placeholder="e.g., RT-12345"
-            />
+            <span className="rounded-lg border border-white/30 bg-white/20 px-3 py-1 font-mono font-semibold text-white">
+              {autoRouteNumber}
+            </span>
           </div>
         </div>
         
@@ -264,7 +415,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       {/* Routing & Destination Section */}
       <div className="p-4 rounded-2xl bg-[#001f3f] border-2 border-[#9DC400] shadow-lg">
         <h4 className="text-lg font-semibold text-[#9DC400] mb-4 flex items-center gap-2 uppercase tracking-wide">
-          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400]">🌍</span>
+          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400] text-[10px] font-bold">ROUTE</span>
           Routing & Destination
         </h4>
         
@@ -272,7 +423,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
           {/* Departure Country */}
           <div className="p-3 bg-white/10 rounded-lg border border-white/20">
             <label className="block text-sm font-medium text-white/80 mb-2">
-              Departure Country / Port
+              Departure Country / {terminalLabel}
             </label>
             <select
               value={departureCountry.code}
@@ -281,19 +432,19 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             >
               {COUNTRIES.map((country) => (
                 <option key={country.code} value={country.code} className="text-gray-900">
-                  {country.name} ({country.city} - {country.airport})
+                  {country.name} ({country.city} - {getModeLocationCode(country, transportMode)})
                 </option>
               ))}
             </select>
             <p className="text-xs text-white/50 mt-2">
-              Selected: <span className="text-[#9DC400]">{departureCountry.city}/{departureCountry.airport}</span>
+              Selected: <span className="text-[#9DC400]">{getModeLocation(departureCountry, transportMode)}</span>
             </p>
           </div>
 
           {/* Destination Country */}
           <div className="p-3 bg-white/10 rounded-lg border border-white/20">
             <label className="block text-sm font-medium text-white/80 mb-2">
-              Destination Country / Port
+              Destination Country / {terminalLabel}
             </label>
             <select
               value={destinationCountry.code}
@@ -302,12 +453,12 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             >
               {COUNTRIES.map((country) => (
                 <option key={country.code} value={country.code} className="text-gray-900">
-                  {country.name} ({country.city} - {country.airport})
+                  {country.name} ({country.city} - {getModeLocationCode(country, transportMode)})
                 </option>
               ))}
             </select>
             <p className="text-xs text-white/50 mt-2">
-              Selected: <span className="text-[#9DC400]">{destinationCountry.city}/{destinationCountry.airport}</span>
+              Selected: <span className="text-[#9DC400]">{getModeLocation(destinationCountry, transportMode)}</span>
             </p>
           </div>
         </div>
@@ -321,11 +472,11 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             </div>
             
             <div className="flex items-center gap-2">
-              <span className="text-[#9DC400]">✈</span>
+              <span className="text-[#9DC400] text-xs font-semibold">{routeSymbol}</span>
               <div className="w-16 h-0.5 bg-[#9DC400]/50"></div>
-              <span className="text-white/40">→</span>
+              <span className="text-white/40">-&gt;</span>
               <div className="w-16 h-0.5 bg-[#9DC400]/50"></div>
-              <span className="text-[#9DC400]">✈</span>
+              <span className="text-[#9DC400] text-xs font-semibold">{routeSymbol}</span>
             </div>
             
             <div className="text-center">
@@ -339,7 +490,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       {/* Shipper Information */}
       <div className="p-4 rounded-2xl bg-[#001f3f] border-2 border-[#9DC400] shadow-lg">
         <h4 className="text-lg font-semibold text-[#9DC400] mb-4 flex items-center gap-2 uppercase tracking-wide">
-          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400]">📦</span>
+          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400] text-[10px] font-bold">SHIP</span>
           Shipper (FROM)
         </h4>
         
@@ -348,61 +499,12 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
           <AddressBookDropdown
             type="shipper"
             onSelect={(name, address, phone) => {
-              updateUserInput('shipperName', 'Greenhills chemicals incorporated')
-              updateUserInput('shipperAddress', GREENHILLS_CONFIG.address)
-              updateUserInput('shipperPhone', GREENHILLS_CONFIG.phone)
+              updateUserInput('shipperName', name)
+              updateUserInput('shipperAddress', address)
+              updateUserInput('shipperPhone', phone)
             }}
             className="mb-3"
           />
-        </div>
-
-        {/* Company Logo Upload */}
-        <div className="mb-4 p-3 bg-white/10 rounded-lg border border-white/20">
-          <label className="block text-sm font-medium text-white/80 mb-2">
-            Company Logo (Optional)
-          </label>
-          <div className="flex items-center gap-3">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) {
-                  const reader = new FileReader()
-              reader.onloadend = () => {
-                updateUserInput('logoUrl' as any, reader.result as string)
-              }
-                  reader.readAsDataURL(file)
-                }
-              }}
-              className="hidden"
-              id="logo-upload"
-            />
-            <label
-              htmlFor="logo-upload"
-              className="px-4 py-2 bg-[#9DC400] text-[#001f3f] rounded-lg cursor-pointer hover:bg-[#B8D940] transition text-sm font-semibold"
-            >
-              Choose Logo
-            </label>
-            {userInput.logoUrl && (
-              <div className="flex items-center gap-2">
-                <img
-                  src={userInput.logoUrl}
-                  alt="Logo preview"
-                  className="h-10 w-10 object-contain bg-white rounded"
-                />
-                <button
-                  onClick={() => updateUserInput('logoUrl' as any, '')}
-                  className="text-red-400 hover:text-red-300 text-sm"
-                >
-                  Remove
-                </button>
-              </div>
-            )}
-          </div>
-          <p className="text-xs text-white/50 mt-2">
-            Upload a company logo to display on the waybill. Recommended: PNG with transparent background.
-          </p>
         </div>
 
         <div className="space-y-3">
@@ -413,7 +515,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             <input
               type="text"
               value={userInput.shipperName || ''}
-              readOnly
+              onChange={(e) => updateUserInput('shipperName', e.target.value)}
               className="w-full px-4 py-3 min-h-[48px] border border-white/20 rounded-xl bg-white/10 text-white placeholder-white/40 focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition"
               placeholder="Enter shipper/company name"
             />
@@ -424,7 +526,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             </label>
             <textarea
               value={userInput.shipperAddress || ''}
-              readOnly
+              onChange={(e) => updateUserInput('shipperAddress', e.target.value)}
               rows={2}
               className="w-full px-4 py-3 border border-white/20 rounded-xl bg-white/10 text-white placeholder-white/40 focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition resize-none"
               placeholder="Full address including city, state, postal code, country"
@@ -437,7 +539,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             <input
               type="tel"
               value={userInput.shipperPhone || ''}
-              readOnly
+              onChange={(e) => updateUserInput('shipperPhone', e.target.value)}
               className="w-full px-4 py-3 min-h-[48px] border border-white/20 rounded-xl bg-white/10 text-white placeholder-white/40 focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition"
               placeholder="+447352998900"
             />
@@ -448,7 +550,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       {/* Consignee Information */}
       <div className="p-4 rounded-2xl bg-[#001f3f] border-2 border-[#9DC400] shadow-lg">
         <h4 className="text-lg font-semibold text-[#9DC400] mb-4 flex items-center gap-2 uppercase tracking-wide">
-          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400]">🚚</span>
+          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400] text-[10px] font-bold">CONS</span>
           Consignee (TO)
         </h4>
         <div className="space-y-3">
@@ -506,7 +608,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       {/* Description of Goods - Line Items */}
       <div className="p-4 rounded-2xl bg-[#001f3f] border-2 border-[#9DC400] shadow-lg">
         <h4 className="text-lg font-semibold text-[#9DC400] mb-4 flex items-center gap-2 uppercase tracking-wide">
-          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400]">📋</span>
+          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400] text-[10px] font-bold">ITEMS</span>
           Description of Goods
         </h4>
         
@@ -546,7 +648,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       {/* Charges & Fees Section - Matches PDF Output */}
       <div className="p-4 rounded-2xl bg-[#001f3f] border-2 border-[#9DC400] shadow-lg">
         <h4 className="text-lg font-semibold text-[#9DC400] mb-4 flex items-center gap-2 uppercase tracking-wide">
-          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400]">💰</span>
+          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400] text-[10px] font-bold">FEES</span>
           Charges & Fees (USD)
         </h4>
         
@@ -623,7 +725,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       {/* Shipment Totals - Preview */}
       <div className="p-4 rounded-2xl bg-[#001f3f] border-2 border-[#9DC400] shadow-lg">
         <h4 className="text-lg font-semibold text-[#9DC400] mb-4 flex items-center gap-2 uppercase tracking-wide">
-          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400]">📊</span>
+          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400] text-[10px] font-bold">TOTAL</span>
           Shipment Totals
         </h4>
         
@@ -637,6 +739,76 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             <p className="text-white font-bold text-lg">{(userInput.totalWeight || 0).toFixed(2)} KG</p>
           </div>
         </div>
+      </div>
+
+      {/* Local Timeline Preview (Compact) */}
+      <div className="p-4 rounded-2xl bg-[#001f3f] border-2 border-[#9DC400] shadow-lg">
+        <h4 className="text-lg font-semibold text-[#9DC400] mb-4 flex items-center gap-2 uppercase tracking-wide">
+          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400]">Preview</span>
+          Projected Timeline
+        </h4>
+
+        <p className="text-xs text-white/70 mb-4">
+          Local projection is compact to keep this dashboard short. Full timeline details and control appear below after loading an existing waybill number.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <div>
+            <label className="block text-sm text-white/80 mb-1">Service Type</label>
+            <select
+              value={serviceType}
+              onChange={(e) => handleServiceTypeChange(e.target.value as (typeof SERVICE_TYPE_OPTIONS)[number])}
+              className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400]"
+            >
+              {SERVICE_TYPE_OPTIONS.map((option) => (
+                <option key={option} value={option} className="text-gray-900">
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm text-white/80 mb-1">Delivery Type</label>
+            <select
+              value={deliveryType}
+              onChange={(e) => handleDeliveryTypeChange(e.target.value as DeliveryType)}
+              className="w-full px-3 py-2 rounded-lg bg-white/10 border border-white/20 text-white focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400]"
+            >
+              <option value="DOOR_TO_DOOR" className="text-gray-900">Door to Door</option>
+              <option value="OFFICE_PICKUP" className="text-gray-900">Office Pickup</option>
+            </select>
+          </div>
+
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={() => regenerateProjectedTimeline()}
+              className="w-full px-3 py-2 rounded-lg bg-[#9DC400] text-[#001f3f] font-semibold hover:bg-[#B8D940] transition"
+            >
+              Regenerate Timeline
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-white/60">Milestones</p>
+            <p className="mt-1 text-sm font-semibold text-white">{projectedTimeline.length}</p>
+          </div>
+          <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-white/60">Start</p>
+            <p className="mt-1 text-sm font-semibold text-white">{projectedTimeline[0]?.status || 'N/A'}</p>
+          </div>
+          <div className="rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-white/60">End</p>
+            <p className="mt-1 text-sm font-semibold text-white">{projectedTimeline[projectedTimeline.length - 1]?.status || 'N/A'}</p>
+          </div>
+        </div>
+
+        <p className="mt-3 text-xs text-white/60">
+          For full event details, load a generated waybill number in <span className="text-[#9DC400] font-semibold">Existing Waybill Timeline Control</span>.
+        </p>
       </div>
 
       {/* Terms & Conditions */}
@@ -706,3 +878,5 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
 }
 
 export default SmartWaybillForm
+
+

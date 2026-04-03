@@ -2,18 +2,8 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useState } from 'react'
 import { useTranslation } from '@/lib/i18n/useTranslation'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
-
-const languages = [
-  { code: 'EN', name: 'English' },
-  { code: 'ES', name: 'Español' },
-  { code: 'FR', name: 'Français' },
-  { code: 'DE', name: 'Deutsch' },
-  { code: 'CN', name: '中文' },
-  { code: 'AR', name: 'العربية' },
-]
 
 // Icon components to replace emojis
 const DiamondIcon = () => (
@@ -215,7 +205,7 @@ export default function AboutPage() {
             </h2>
             <p className="text-white/80 text-lg leading-relaxed">
               At Skyship, we believe that moving cargo should be as seamless as a clear sky.
-              In an increasingly complex world, we provide a "glass-box" approach to logistics—where 
+              In an increasingly complex world, we provide a glass-box approach to logistics where 
               every movement is visible, every milestone is tracked, and every client is empowered with 
               real-time data. We aren&apos;t just moving parcels; we are bridging the gap between global 
               markets and local doorsteps.
@@ -363,7 +353,7 @@ export default function AboutPage() {
           </div>
           <div className="border-t border-white/10 pt-8 text-center">
             <p className="text-white/50 text-sm">
-              © 2026 Skyship Logistics. All rights reserved.
+              Copyright 2026 Skyship Logistics. All rights reserved.
             </p>
           </div>
         </div>
@@ -371,3 +361,5 @@ export default function AboutPage() {
     </div>
   )
 }
+
+

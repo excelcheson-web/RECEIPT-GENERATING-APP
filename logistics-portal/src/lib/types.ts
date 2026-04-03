@@ -164,6 +164,7 @@ export interface UserInputFields {
   // Additional Fields for PDF Output
   receiverCity?: string;
   routeNumber?: string;
+  paymentStatus?: 'PAID' | 'NOT PAID' | 'PARTIAL PAYMENT' | 'PAYMENT PENDING' | 'CASH ON DELIVERY';
 }
 
 // Waybill form data interface - PRIMARY (flexible for both legacy and new usage)
@@ -196,9 +197,11 @@ export interface WaybillFormData {
   
   // === PACKAGE INFORMATION (User Input) ===
   packageDescription?: string;
+  cargoDescription?: string;
   contents?: string;
   totalWeight?: number;
   weight?: number;
+  dimensions?: string;
   numberOfPieces?: number;
   pieces?: number;
   isFragile?: boolean;
@@ -273,12 +276,18 @@ export interface WaybillFormData {
   
   // === TRACKING INTEGRATION ===
   status?: 'PENDING' | 'IN_TRANSIT' | 'DELIVERED';
+  currentStatus?: string;
+  paymentStatus?: string;
+  deliveredDate?: string;
+  shipmentMode?: string;
+  deliveryType?: 'DOOR_TO_DOOR' | 'OFFICE_PICKUP';
   currentLocation?: string;
+  trackingEvents?: TrackingEventRecord[];
   transitHistory?: TransitEvent[];
   
   // === LEGACY COMPATIBILITY ===
   // Allow any additional fields for backward compatibility
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 // Legacy waybill form data interface - FOR TYPE SAFETY IN LEGACY COMPONENTS
@@ -361,6 +370,7 @@ export interface DocumentConfig {
   notes?: string;
   companyAddress?: string;
   companyPhone?: string;
+  companyEmail?: string;
   customerName?: string;
   customerAddress?: string;
   taxRate?: number;
@@ -369,6 +379,8 @@ export interface DocumentConfig {
   description?: string; // NEW: Receipt description/memo
   transferMode?: string; // NEW: Mode of transfer (e.g., Bank Transfer - Wire)
   receiptDescription?: string; // NEW: Detailed receipt description
+  signeeName?: string;
+  stampUrl?: string;
   // Waybill specific data
   waybillData?: WaybillFormData;
 }
@@ -379,6 +391,7 @@ export interface TrackingEventRecord {
   location: string;
   description: string;
   eventTime: string;
+  isHold?: boolean;
 }
 
 // Firestore waybill document shape (supports both old and new fields)
@@ -434,4 +447,6 @@ export interface StoredWaybill extends Omit<Partial<WaybillFormData>, 'serviceTy
   dateOfIssue?: string;
 
   trackingEvents?: TrackingEventRecord[];
+  deliveryType?: 'DOOR_TO_DOOR' | 'OFFICE_PICKUP';
+  timelineOnHold?: boolean;
 }

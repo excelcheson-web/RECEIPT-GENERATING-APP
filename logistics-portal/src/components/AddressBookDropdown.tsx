@@ -10,7 +10,7 @@ interface AddressBookDropdownProps {
 }
 
 export function AddressBookDropdown({ type, onSelect, className = '' }: AddressBookDropdownProps) {
-  const { getAddressesByType, saveAddress, deleteAddress } = useAddressBook()
+  const { getAddressesByType, saveAddress } = useAddressBook()
   const [isOpen, setIsOpen] = useState(false)
   const [showSaveForm, setShowSaveForm] = useState(false)
   const [newAddress, setNewAddress] = useState({ name: '', address: '', phone: '' })

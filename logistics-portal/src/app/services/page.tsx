@@ -254,7 +254,7 @@ export default function ServicesPage() {
               <h4 className="text-white font-semibold mb-4">Support</h4>
               <ul className="space-y-2">
                 <li><a href="#" className="skyship-footer-link text-sm">Help Center</a></li>
-                <li><a href="#" className="skyship-footer-link text-sm">Contact Us</a></li>
+                <li><Link href="/contact" className="skyship-footer-link text-sm">Contact Us</Link></li>
                 <li><a href="#" className="skyship-footer-link text-sm">FAQs</a></li>
                 <li><a href="#" className="skyship-footer-link text-sm">Live Chat</a></li>
               </ul>

@@ -1,145 +1,164 @@
-import React from 'react';
-import { TrackingTimeline, TrackingEvent } from './TrackingTimeline';
-import { normalizeWaybill } from '@/lib/waybillNormalization';
-import type { StoredWaybill } from '@/lib/types';
+import React from 'react'
+import { normalizeWaybill } from '@/lib/waybillNormalization'
+import { computeRuntimeTrackingState } from '@/lib/trackingAutomation'
+import type { StoredWaybill } from '@/lib/types'
+import { TrackingTimeline, type TrackingEvent } from './TrackingTimeline'
+import { ShipmentRouteMap } from './ShipmentRouteMap'
 
 interface TrackingResultProps {
-  waybill: StoredWaybill;
+  waybill: StoredWaybill
+  layout?: 'horizontal' | 'vertical'
 }
 
-export const TrackingResult: React.FC<TrackingResultProps & { layout?: 'horizontal' | 'vertical' }> = ({ waybill }) => {
-  if (!waybill) return null;
+function statusBadgeClass(status: string): string {
+  const value = status.toLowerCase()
+  if (value.includes('hold')) return 'bg-amber-500/20 text-amber-100 border-amber-300/60'
+  if (value.includes('deliver')) return 'bg-emerald-500/20 text-emerald-200 border-emerald-400/60'
+  if (value.includes('out for delivery')) return 'bg-amber-500/20 text-amber-200 border-amber-300/60'
+  if (value.includes('transit') || value.includes('dispatch') || value.includes('arrived')) {
+    return 'bg-lime-500/20 text-lime-100 border-lime-300/60'
+  }
+  return 'bg-slate-500/20 text-slate-200 border-slate-400/60'
+}
 
-  const data = normalizeWaybill(waybill);
-  const statusLower = data.currentStatus.toLowerCase();
-  const statusClass = statusLower.includes('delivered')
-    ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-    : statusLower.includes('transit') || statusLower.includes('dispatched')
-    ? 'bg-blue-100 text-blue-700 border-blue-300'
-    : 'bg-lime-100 text-lime-700 border-lime-300';
+function formatDateValue(value: string): string {
+  const parsed = Date.parse(value)
+  if (Number.isNaN(parsed)) return value
 
-  const renderField = (label: string, value: string | number | null) => (
-    <div className="text-sm text-[#d6e3f4] grid grid-cols-[170px_1fr] gap-2">
-      <span className="font-semibold text-[#9ec4ef]">{label}</span>
-      <span>{value === null || value === '' ? 'Not available' : String(value)}</span>
+  return new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(parsed)
+}
+
+function Field({ label, value }: { label: string; value: string | number | null }) {
+  const display = value === null || value === '' ? 'Not available' : String(value)
+  return (
+    <div className="logistics-card-soft tracking-lift px-3 py-2">
+      <p className="text-[11px] uppercase tracking-wide text-[#87a3c2]">{label}</p>
+      <p className="mt-1 text-sm font-medium text-[#e2ebf7] break-words">{display}</p>
     </div>
-  );
+  )
+}
 
-  const additionalEntries = Object.entries(data.additionalFields);
-  const fromLocation = data.origin;
-  const toLocation = data.destination;
-  const cargoLocation = data.currentLocation;
-  const hasRoute = fromLocation !== 'Not available' && toLocation !== 'Not available';
-  const routeMapUrl = hasRoute
-    ? `https://maps.google.com/maps?saddr=${encodeURIComponent(fromLocation)}&daddr=${encodeURIComponent(toLocation)}&output=embed`
-    : `https://maps.google.com/maps?q=${encodeURIComponent(cargoLocation !== 'Not available' ? cargoLocation : fromLocation)}&output=embed`;
+function PartyCard({
+  title,
+  name,
+  phone,
+  address,
+}: {
+  title: string
+  name: string
+  phone: string
+  address: string
+}) {
+  return (
+    <article className="logistics-card-soft tracking-lift p-4">
+      <h4 className="text-sm font-semibold text-white">{title}</h4>
+      <div className="mt-3 space-y-2 text-sm">
+        <div>
+          <p className="text-[11px] uppercase tracking-wide text-[#87a3c2]">Name</p>
+          <p className="text-[#e2ebf7]">{name}</p>
+        </div>
+        <div>
+          <p className="text-[11px] uppercase tracking-wide text-[#87a3c2]">Phone</p>
+          <p className="text-[#e2ebf7]">{phone}</p>
+        </div>
+        <div>
+          <p className="text-[11px] uppercase tracking-wide text-[#87a3c2]">Address</p>
+          <p className="text-[#e2ebf7]">{address}</p>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+export const TrackingResult: React.FC<TrackingResultProps> = ({ waybill, layout = 'horizontal' }) => {
+  if (!waybill) return null
+
+  const data = normalizeWaybill(waybill)
+  const runtime = computeRuntimeTrackingState(data.trackingEvents)
+  const activeEvent = runtime.activeEventIndex >= 0 ? runtime.events[runtime.activeEventIndex] : null
+  const transportCodeLabel = data.shipmentMode.toUpperCase().includes('SEA') ? 'SCAC Code' : 'IATA / Carrier Code'
+  const wrapClass = layout === 'vertical' ? 'grid grid-cols-1 gap-6' : 'grid grid-cols-1 xl:grid-cols-12 gap-6'
+  const leftClass = layout === 'vertical' ? '' : 'xl:col-span-7'
+  const rightClass = layout === 'vertical' ? '' : 'xl:col-span-5'
 
   return (
-    <div className="tracking-result space-y-6">
-      <div className="rounded-2xl shadow-xl p-5 sm:p-6 border border-[#3d587f] bg-[#102744]">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <h2 className="text-xl font-bold text-white">Shipment Tracking Summary</h2>
-          <span className={`inline-flex items-center px-4 py-2 rounded-full border text-sm font-semibold ${statusClass}`}>
-            {data.currentStatus}
-          </span>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {renderField('Tracking Number', data.trackingNumber)}
-          {renderField('Waybill Number', data.waybillNumber)}
-          {renderField('Current Status', data.currentStatus)}
-          {renderField('Current Location', data.currentLocation)}
-          {renderField('Booking Date', data.bookingDate)}
-          {renderField('Estimated Delivery Date', data.estimatedDeliveryDate)}
-          {renderField('Delivered Date', data.deliveredDate)}
-          {renderField('Shipment Mode', data.shipmentMode)}
-          {renderField('Service Type', data.serviceType)}
-          {renderField('Payment Status', data.paymentStatus)}
-          {renderField('Last Updated', data.lastUpdated)}
-        </div>
+    <section className={`${wrapClass} tracking-section-gap`}>
+      <div className={`space-y-6 ${leftClass}`}>
+        <article className="logistics-card tracking-grid-overlay p-5 sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="logistics-muted text-xs uppercase tracking-[0.2em]">Shipment Summary</p>
+              <h2 className="logistics-title mt-2 text-xl">Tracking {data.trackingNumber}</h2>
+              <p className="logistics-subtitle mt-1 text-sm">
+                {data.origin} to {data.destination}
+              </p>
+            </div>
+
+            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass(data.currentStatus)}`}>
+              {data.currentStatus}
+            </span>
+          </div>
+
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Waybill Number" value={data.waybillNumber} />
+            <Field label="Current Location" value={data.currentLocation} />
+            <Field label="Booked On" value={formatDateValue(data.bookingDate)} />
+            <Field label="Estimated Delivery" value={formatDateValue(data.estimatedDeliveryDate)} />
+          </div>
+
+          <div className="mt-5 rounded-xl border border-lime-300/30 bg-lime-400/10 p-4">
+            <p className="text-xs uppercase tracking-wide text-lime-200">Current Status Highlight</p>
+            <p className="mt-1 text-sm font-semibold text-white">{activeEvent?.status || data.currentStatus}</p>
+            <p className="text-sm text-[#d7e4f6]">{activeEvent?.location || data.currentLocation}</p>
+            <p className="mt-1 text-xs text-[#b8cae1]">
+              {activeEvent ? formatDateValue(activeEvent.eventTime) : formatDateValue(data.lastUpdated)}
+            </p>
+          </div>
+        </article>
+
+        <TrackingTimeline events={data.trackingEvents as TrackingEvent[]} currentStatus={data.currentStatus} />
+        <ShipmentRouteMap
+          origin={data.origin}
+          destination={data.destination}
+          currentLocation={data.currentLocation}
+          events={data.trackingEvents as TrackingEvent[]}
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-2xl shadow-lg p-5 border border-[#3d587f] bg-[#143153]">
-          <h3 className="text-lg font-bold text-white mb-3">Sender / Shipper Details</h3>
-          <div className="space-y-2">
-            {renderField('Sender Name', data.senderName)}
-            {renderField('Sender Phone', data.senderPhone)}
-            {renderField('Sender Address', data.senderAddress)}
-            {renderField('Shipper Name', data.shipperName)}
-            {renderField('From (Origin / Port of Departure)', data.origin)}
+      <div className={`space-y-6 ${rightClass}`}>
+        <article className="logistics-card tracking-grid-overlay p-5 sm:p-6">
+          <h3 className="text-lg font-semibold text-white">Shipment Details</h3>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Shipment Mode" value={data.shipmentMode} />
+            <Field label="Service Type" value={data.serviceType} />
+            <Field label={transportCodeLabel} value={data.iataCode} />
+            <Field label="Carrier Reference" value={data.carrierReference} />
+            <Field label="Payment Status" value={data.paymentStatus} />
+            <Field label="Last Updated" value={formatDateValue(data.lastUpdated)} />
+            <Field label="Description" value={data.parcelDescription} />
+            <Field label="Dimensions" value={data.dimensions} />
+            <Field label="Weight" value={data.weight} />
+            <Field label="Quantity / Pieces" value={data.quantity ?? data.totalPieces} />
           </div>
-        </div>
+        </article>
 
-        <div className="rounded-2xl shadow-lg p-5 border border-[#3d587f] bg-[#143153]">
-          <h3 className="text-lg font-bold text-white mb-3">Receiver / Consignee Details</h3>
-          <div className="space-y-2">
-            {renderField('Receiver Name', data.receiverName)}
-            {renderField('Receiver Phone', data.receiverPhone)}
-            {renderField('Receiver Address', data.receiverAddress)}
-            {renderField('Consignee Name', data.consigneeName)}
-            {renderField('To (Destination / Port of Destination)', data.destination)}
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-2xl shadow-lg p-5 border border-[#3d587f] bg-[#143153]">
-        <h3 className="text-lg font-bold text-white mb-3">Shipment Route & Cargo Location</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          {renderField('From', fromLocation)}
-          {renderField('To', toLocation)}
-          {renderField('Current Cargo Location', cargoLocation)}
-        </div>
-        <div className="rounded-xl overflow-hidden border border-[#3d587f] bg-[#102744]">
-          <iframe
-            title="Shipment route map"
-            src={routeMapUrl}
-            className="w-full"
-            style={{ height: '360px' }}
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-4">
+          <PartyCard title="Sender / Shipper" name={data.senderName} phone={data.senderPhone} address={data.senderAddress} />
+          <PartyCard
+            title="Consignee / Receiver"
+            name={data.receiverName}
+            phone={data.receiverPhone}
+            address={data.receiverAddress}
           />
         </div>
       </div>
-
-      <div className="rounded-2xl shadow-lg p-5 border border-[#3d587f] bg-[#143153]">
-        <h3 className="text-lg font-bold text-white mb-3">Parcel / Cargo Details</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {renderField('Parcel Description', data.parcelDescription)}
-          {renderField('Cargo Description', data.cargoDescription)}
-          {renderField('Package Description', data.packageDescription)}
-          {renderField('Quantity / Pieces', data.quantity ?? data.totalPieces)}
-          {renderField('Weight', data.weight ?? data.totalWeight)}
-          {renderField('Dimensions', data.dimensions)}
-          {renderField('Special Instructions', data.specialInstructions)}
-        </div>
-      </div>
-
-      <div className="rounded-2xl shadow-lg p-5 border border-[#3d587f] bg-[#143153]">
-        <h3 className="text-lg font-bold text-white mb-3">Additional Waybill Details</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
-          {renderField('Date of Issue', data.dateOfIssue)}
-          {renderField('Estimated Arrival Date', data.estimatedArrivalDate)}
-          {renderField('Total Pieces', data.totalPieces)}
-          {renderField('Total Weight', data.totalWeight)}
-          {renderField('Route Number', data.routeNumber)}
-        </div>
-
-        {additionalEntries.length > 0 && (
-          <div className="mt-4 border-t border-[#2d496d] pt-4">
-            <div className="font-semibold text-[#9ec4ef] mb-3 tracking-wide">OTHER DETAILS</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {additionalEntries.map(([key, value]) => (
-                <div key={key} className="text-sm text-[#d6e3f4] grid grid-cols-[150px_1fr] gap-2 rounded-md bg-[#102744]/60 px-3 py-2">
-                  <span className="font-semibold text-[#9ec4ef] wrap-break-word">{key}</span>
-                  <span className="wrap-break-word">{value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <TrackingTimeline events={data.trackingEvents as TrackingEvent[]} currentStatus={data.currentStatus} />
-    </div>
-  );
-};
+    </section>
+  )
+}

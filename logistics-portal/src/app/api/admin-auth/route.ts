@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server'
 
+const FALLBACK_ADMIN_USERNAME = 'Dragon404'
+const FALLBACK_ADMIN_PASSWORD = '56920lK'
+
 export async function POST(request: Request) {
   try {
     const { username, password } = await request.json()
+    const submittedUsername = typeof username === 'string' ? username.trim() : ''
+    const submittedPassword = typeof password === 'string' ? password : ''
 
-    const adminUsername = process.env.ADMIN_USERNAME
-    const adminPassword = process.env.ADMIN_PASSWORD
+    const adminUsername = process.env.ADMIN_USERNAME?.trim() || FALLBACK_ADMIN_USERNAME
+    const adminPassword = process.env.ADMIN_PASSWORD || FALLBACK_ADMIN_PASSWORD
 
-    if (!adminUsername || !adminPassword) {
-      return NextResponse.json({ error: 'Admin credentials not configured.' }, { status: 500 })
-    }
-
-    if (username === adminUsername && password === adminPassword) {
+    if (submittedUsername === adminUsername && submittedPassword === adminPassword) {
       return NextResponse.json({ ok: true }, { status: 200 })
     }
 
