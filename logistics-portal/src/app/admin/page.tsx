@@ -51,23 +51,22 @@ import { buildStoredWaybillFromFormData, createWaybill, getWaybillErrorMessage }
 const ADMIN_AUTH_KEY = 'skyship_admin_auth'
 const FALLBACK_ADMIN_USERNAME = process.env.NEXT_PUBLIC_ADMIN_USERNAME ?? 'Dragon404'
 const FALLBACK_ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? '56920lK'
+const LAST_RECEIPT_DOC_STORAGE_KEY = 'skyship_last_receipt_doc'
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
+function asSafeText(value: unknown, fallback: string): string {
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed || fallback
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    const trimmed = String(value).trim()
+    return trimmed || fallback
+  }
+  return fallback
 }
 
-function asSafeText(value: string | undefined, fallback: string): string {
-  const trimmed = (value || '').trim()
-  return trimmed || fallback
-}
-
-function asSafeHtml(value: string | undefined, fallback: string): string {
-  return escapeHtml(asSafeText(value, fallback)).replace(/\n/g, '<br />')
+function asOptionalText(value: unknown): string {
+  return asSafeText(value, '')
 }
 
 function formatPrintCurrency(currency: DocumentConfig['currency'], amount: number): string {
@@ -75,7 +74,20 @@ function formatPrintCurrency(currency: DocumentConfig['currency'], amount: numbe
   return `${symbol}${amount.toFixed(2)}`
 }
 
-function buildMobileReceiptPrintHtml(data: DocumentConfig): string {
+function isMobileBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  const touchMac = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1
+  return /Android|iPhone|iPad|iPod|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua) || touchMac
+}
+
+interface ReceiptPrintViewProps {
+  data: DocumentConfig
+  pdfUrl?: string | null
+  onBack: () => void
+}
+
+function ReceiptPrintView({ data, pdfUrl, onBack }: ReceiptPrintViewProps) {
   const companyName = asSafeText(data.companyName, 'Company Name')
   const companyAddress = asSafeText(data.companyAddress, 'Not provided')
   const companyPhone = asSafeText(data.companyPhone, 'Not provided')
@@ -93,221 +105,185 @@ function buildMobileReceiptPrintHtml(data: DocumentConfig): string {
   const paid = typeof data.paid === 'number' ? data.paid : 0
   const items = Array.isArray(data.items) ? data.items : []
 
-  let subtotal = 0
-  const itemRows = items.length
-    ? items
-        .map((item) => {
-          const quantity = Number(item.quantity) || 0
-          const unitPrice = Number(item.price) || 0
-          const total = quantity * unitPrice
-          subtotal += total
-          return `
-            <tr>
-              <td>${escapeHtml(asSafeText(item.description, '-'))}</td>
-              <td class="num">${quantity}</td>
-              <td class="num">${formatPrintCurrency(data.currency, unitPrice)}</td>
-              <td class="num">${formatPrintCurrency(data.currency, total)}</td>
-            </tr>
-          `
-        })
-        .join('')
-    : '<tr><td colspan="4">No line items available.</td></tr>'
+  const rows = items.map((item, index) => {
+    const quantity = Number(item.quantity) || 0
+    const unitPrice = Number(item.price) || 0
+    const total = quantity * unitPrice
+    return { id: `${index}-${item.description}`, description: asSafeText(item.description, '-'), quantity, unitPrice, total }
+  })
+  const subtotal = rows.reduce((sum, row) => sum + row.total, 0)
 
   const tax = subtotal * (taxRate / 100)
   const grandTotal = subtotal + tax
   const balance = grandTotal - paid
 
-  return `<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Receipt ${escapeHtml(receiptNumber)}</title>
-  <style>
-    :root { color-scheme: light; }
-    * { box-sizing: border-box; }
-    html, body { width: 100%; overflow-x: visible; }
-    body {
-      margin: 0;
-      padding: 12px;
-      background: #f3f7fb;
-      color: #10243b;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .receipt {
-      width: 100%;
-      max-width: 430px;
-      margin: 0 auto;
-      background: #ffffff;
-      border: 1px solid #d4deea;
-      border-radius: 12px;
-      padding: 14px;
-    }
-    .header { border-bottom: 1px solid #d4deea; padding-bottom: 10px; margin-bottom: 10px; }
-    .title { margin: 0; font-size: 20px; letter-spacing: 0.04em; }
-    .meta, .section { margin-top: 10px; }
-    .meta-grid, .section-grid { display: grid; gap: 6px; }
-    .meta-grid { grid-template-columns: 1fr 1fr; }
-    .label { font-size: 11px; text-transform: uppercase; color: #4c6380; letter-spacing: 0.04em; }
-    .value { font-size: 13px; font-weight: 600; color: #10243b; word-break: break-word; }
-    .muted { font-size: 12px; color: #45607f; line-height: 1.45; word-break: break-word; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; table-layout: fixed; }
-    th, td { border: 1px solid #d4deea; padding: 6px; text-align: left; vertical-align: top; word-break: break-word; }
-    th { background: #e8f0fa; font-size: 11px; text-transform: uppercase; color: #304b67; }
-    .num { text-align: right; white-space: nowrap; }
-    .totals { margin-top: 10px; border: 1px solid #d4deea; border-radius: 10px; padding: 8px; }
-    .totals-row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-top: 4px; }
-    .totals-row:first-child { margin-top: 0; }
-    .totals-row strong { font-size: 14px; }
-    .sign { margin-top: 14px; padding-top: 10px; border-top: 1px dashed #b8c7da; font-size: 12px; color: #314a67; }
-    .print-controls { margin: 14px auto 0; max-width: 430px; display: flex; gap: 8px; }
-    .print-controls button {
-      flex: 1;
-      border: 0;
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 14px;
-      font-weight: 600;
-      color: #ffffff;
-      background: #1f4c7a;
-    }
-    .print-controls button.secondary { background: #586b85; }
-    @media screen and (max-width: 480px) {
-      body { padding: 8px; }
-      .receipt { padding: 12px; border-radius: 10px; }
-      .meta-grid { grid-template-columns: 1fr; }
-      th, td { padding: 5px; font-size: 11px; }
-      .title { font-size: 18px; }
-    }
-    @page { size: auto; margin: 10mm; }
-    @media print {
-      body { background: #ffffff; padding: 0; }
-      .receipt {
-        max-width: none;
-        border: 0;
-        border-radius: 0;
-        padding: 0;
-      }
-      .print-controls { display: none !important; }
-      table, tr, td, th, .totals, .section { page-break-inside: avoid; break-inside: avoid; }
-    }
-  </style>
-</head>
-<body>
-  <article class="receipt">
-    <header class="header">
-      <p class="label">Company</p>
-      <h1 class="title">${escapeHtml(companyName)}</h1>
-      <p class="muted">${asSafeHtml(companyAddress, 'Not provided')}</p>
-      <p class="muted">${escapeHtml(companyPhone)} | ${escapeHtml(companyEmail)}</p>
-    </header>
-
-    <section class="meta">
-      <div class="meta-grid">
-        <div>
-          <p class="label">Receipt Number</p>
-          <p class="value">${escapeHtml(receiptNumber)}</p>
-        </div>
-        <div>
-          <p class="label">Issue Date</p>
-          <p class="value">${escapeHtml(issueDate)}</p>
-        </div>
-        <div>
-          <p class="label">Payment Method</p>
-          <p class="value">${escapeHtml(paymentMethod)}</p>
-        </div>
-        <div>
-          <p class="label">Transfer Mode</p>
-          <p class="value">${escapeHtml(transferMode)}</p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section">
-      <p class="label">Bill To</p>
-      <p class="value">${escapeHtml(customerName)}</p>
-      <p class="muted">${asSafeHtml(customerAddress, 'Customer Address')}</p>
-    </section>
-
-    <section class="section">
-      <table aria-label="Receipt Items">
-        <thead>
-          <tr>
-            <th style="width: 46%;">Description</th>
-            <th style="width: 14%;" class="num">Qty</th>
-            <th style="width: 20%;" class="num">Unit</th>
-            <th style="width: 20%;" class="num">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${itemRows}
-        </tbody>
-      </table>
-    </section>
-
-    <section class="totals">
-      <div class="totals-row"><span>Subtotal</span><span>${formatPrintCurrency(data.currency, subtotal)}</span></div>
-      <div class="totals-row"><span>VAT (${taxRate}%)</span><span>${formatPrintCurrency(data.currency, tax)}</span></div>
-      <div class="totals-row"><span>Paid</span><span>${formatPrintCurrency(data.currency, paid)}</span></div>
-      <div class="totals-row"><span>Balance</span><span>${formatPrintCurrency(data.currency, balance)}</span></div>
-      <div class="totals-row"><strong>Grand Total</strong><strong>${formatPrintCurrency(data.currency, grandTotal)}</strong></div>
-    </section>
-
-    <section class="section">
-      <p class="label">Notes</p>
-      <p class="muted">${asSafeHtml(notes, '-')}</p>
-      <p class="label" style="margin-top: 8px;">Memo</p>
-      <p class="muted">${asSafeHtml(memo, '-')}</p>
-    </section>
-
-    <p class="sign">Authorized Signatory: ${escapeHtml(signeeName)}</p>
-  </article>
-
-  <div class="print-controls">
-    <button id="print-now" type="button" onclick="window.print()">Print Receipt</button>
-    <button
-      type="button"
-      class="secondary"
-      onclick="if (window.opener) { window.close(); } else if (window.history.length > 1) { window.history.back(); } else { window.location.href = '/admin'; }"
-    >
-      Back to App
-    </button>
-  </div>
-  <p style="max-width:430px;margin:10px auto 0;font-size:12px;color:#4c6380;line-height:1.4;">
-    If print dialog does not open automatically on your phone, tap <strong>Print Receipt</strong>.
-  </p>
-
-  <script>
-    (function () {
-      var ua = navigator.userAgent || '';
-      var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      var printButton = document.getElementById('print-now');
-      if (printButton) {
-        printButton.addEventListener('click', function () {
-          window.print();
-        });
-      }
-
-      if (!isIOS) {
-        var trigger = function () {
-          window.setTimeout(function () {
-            window.focus();
-            window.print();
-          }, 180);
-        };
-
-        if (document.readyState === 'complete') {
-          trigger();
-        } else {
-          window.addEventListener('load', trigger, { once: true });
+  const handlePrintTap = useCallback(() => {
+    try {
+      if (typeof window.print === 'function') {
+        let afterPrintFired = false
+        const onAfterPrint = () => {
+          afterPrintFired = true
         }
+        window.addEventListener('afterprint', onAfterPrint, { once: true })
+        window.print()
+
+        if (isMobileBrowser()) {
+          window.setTimeout(() => {
+            if (!afterPrintFired) {
+              alert('If print dialog did not open, tap Open PDF Copy and use your browser menu to print.')
+            }
+          }, 1200)
+        }
+        return
       }
-    })();
-  </script>
-</body>
-</html>`
+    } catch (error) {
+      console.error('Native print failed:', error)
+    }
+
+    if (pdfUrl) {
+      window.location.href = pdfUrl
+      return
+    }
+
+    alert('Printing is not available in this browser. Open this page in Safari or Chrome and use Share > Print.')
+  }, [pdfUrl])
+
+  return (
+    <div className="receipt-print-shell min-h-screen bg-[#f3f7fb] px-2 py-3 sm:px-4 sm:py-4">
+      <style jsx global>{`
+        @media print {
+          .receipt-print-shell {
+            background: #ffffff !important;
+            padding: 0 !important;
+          }
+          .receipt-print-actions {
+            display: none !important;
+          }
+          .receipt-print-card {
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            max-width: none !important;
+          }
+        }
+      `}</style>
+
+      <article className="receipt-print-card mx-auto w-full max-w-[430px] rounded-xl border border-[#d4deea] bg-white p-3 sm:p-4">
+        <header className="border-b border-[#d4deea] pb-2">
+          <p className="text-[11px] uppercase tracking-wide text-[#4c6380]">Company</p>
+          <h1 className="text-xl font-semibold tracking-wide text-[#10243b]">{companyName}</h1>
+          <p className="mt-1 text-xs text-[#45607f] whitespace-pre-wrap break-words">{companyAddress}</p>
+          <p className="text-xs text-[#45607f] break-words">{companyPhone} | {companyEmail}</p>
+        </header>
+
+        <section className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-[#4c6380]">Receipt Number</p>
+            <p className="text-sm font-semibold text-[#10243b]">{receiptNumber}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-[#4c6380]">Issue Date</p>
+            <p className="text-sm font-semibold text-[#10243b]">{issueDate}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-[#4c6380]">Payment Method</p>
+            <p className="text-sm font-semibold text-[#10243b]">{paymentMethod}</p>
+          </div>
+          <div>
+            <p className="text-[11px] uppercase tracking-wide text-[#4c6380]">Transfer Mode</p>
+            <p className="text-sm font-semibold text-[#10243b]">{transferMode}</p>
+          </div>
+        </section>
+
+        <section className="mt-3">
+          <p className="text-[11px] uppercase tracking-wide text-[#4c6380]">Bill To</p>
+          <p className="text-sm font-semibold text-[#10243b]">{customerName}</p>
+          <p className="text-xs text-[#45607f] whitespace-pre-wrap break-words">{customerAddress}</p>
+        </section>
+
+        <section className="mt-3 overflow-x-auto">
+          <table className="w-full table-fixed border-collapse text-xs">
+            <thead>
+              <tr>
+                <th className="w-[46%] border border-[#d4deea] bg-[#e8f0fa] px-1 py-1 text-left uppercase text-[#304b67]">Description</th>
+                <th className="w-[14%] border border-[#d4deea] bg-[#e8f0fa] px-1 py-1 text-right uppercase text-[#304b67]">Qty</th>
+                <th className="w-[20%] border border-[#d4deea] bg-[#e8f0fa] px-1 py-1 text-right uppercase text-[#304b67]">Unit</th>
+                <th className="w-[20%] border border-[#d4deea] bg-[#e8f0fa] px-1 py-1 text-right uppercase text-[#304b67]">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length > 0 ? (
+                rows.map((row) => (
+                  <tr key={row.id}>
+                    <td className="border border-[#d4deea] px-1 py-1 break-words text-[#10243b]">{row.description}</td>
+                    <td className="border border-[#d4deea] px-1 py-1 text-right text-[#10243b]">{row.quantity}</td>
+                    <td className="border border-[#d4deea] px-1 py-1 text-right text-[#10243b]">{formatPrintCurrency(data.currency, row.unitPrice)}</td>
+                    <td className="border border-[#d4deea] px-1 py-1 text-right text-[#10243b]">{formatPrintCurrency(data.currency, row.total)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="border border-[#d4deea] px-1 py-2 text-center text-[#45607f]">
+                    No line items available.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </section>
+
+        <section className="mt-3 rounded-lg border border-[#d4deea] p-2 text-sm text-[#10243b]">
+          <div className="flex items-center justify-between"><span>Subtotal</span><span>{formatPrintCurrency(data.currency, subtotal)}</span></div>
+          <div className="mt-1 flex items-center justify-between"><span>VAT ({taxRate}%)</span><span>{formatPrintCurrency(data.currency, tax)}</span></div>
+          <div className="mt-1 flex items-center justify-between"><span>Paid</span><span>{formatPrintCurrency(data.currency, paid)}</span></div>
+          <div className="mt-1 flex items-center justify-between"><span>Balance</span><span>{formatPrintCurrency(data.currency, balance)}</span></div>
+          <div className="mt-1 flex items-center justify-between font-semibold"><span>Grand Total</span><span>{formatPrintCurrency(data.currency, grandTotal)}</span></div>
+        </section>
+
+        <section className="mt-3 text-xs text-[#45607f]">
+          <p className="text-[11px] uppercase tracking-wide text-[#4c6380]">Notes</p>
+          <p className="whitespace-pre-wrap break-words">{notes}</p>
+          <p className="mt-2 text-[11px] uppercase tracking-wide text-[#4c6380]">Memo</p>
+          <p className="whitespace-pre-wrap break-words">{memo}</p>
+        </section>
+
+        <p className="mt-3 border-t border-dashed border-[#b8c7da] pt-2 text-xs text-[#314a67]">
+          Authorized Signatory: {signeeName}
+        </p>
+      </article>
+
+      <div className="receipt-print-actions mx-auto mt-3 flex w-full max-w-[430px] flex-col gap-2 sm:flex-row">
+        <button
+          type="button"
+          onClick={handlePrintTap}
+          className="w-full rounded-lg bg-[#1f4c7a] px-4 py-3 text-sm font-semibold text-white"
+        >
+          Print Receipt
+        </button>
+        {pdfUrl && (
+          <a
+            href={pdfUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full rounded-lg bg-[#35597f] px-4 py-3 text-center text-sm font-semibold text-white"
+          >
+            Open PDF Copy
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={onBack}
+          className="w-full rounded-lg bg-[#586b85] px-4 py-3 text-sm font-semibold text-white"
+        >
+          Back to App
+        </button>
+      </div>
+
+      <p className="mx-auto mt-2 w-full max-w-[430px] text-xs text-[#4c6380]">
+        iPhone/Safari: if dialog does not show immediately, tap <strong>Print Receipt</strong> again.
+      </p>
+    </div>
+  )
 }
 
 export default function AdminPage() {
@@ -388,12 +364,12 @@ export default function AdminPage() {
   }
 
   const [type, setType] = useState<'RECEIPT' | 'WAYBILL'>('RECEIPT')
-  const [companyName, setCompanyName] = useState('Greenhills Chemical Incorporation')
+  const [companyName, setCompanyName] = useState(asSafeText(GREENHILLS_CONFIG.name, 'Company Name'))
   const [logoUrl, setLogoUrl] = useState('')
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
-  const [companyAddress, setCompanyAddress] = useState<string>(GREENHILLS_CONFIG.address)
-  const [companyPhone, setCompanyPhone] = useState<string>(GREENHILLS_CONFIG.phone)
-  const [companyEmail, setCompanyEmail] = useState<string>('billing@greenhills.com')
+  const [companyAddress, setCompanyAddress] = useState<string>(asOptionalText(GREENHILLS_CONFIG.address))
+  const [companyPhone, setCompanyPhone] = useState<string>(asOptionalText(GREENHILLS_CONFIG.phone))
+  const [companyEmail, setCompanyEmail] = useState<string>('')
   const [customerName, setCustomerName] = useState('')
   const [customerAddress, setCustomerAddress] = useState('')
   const [origin] = useState('')
@@ -421,8 +397,34 @@ export default function AdminPage() {
   const [stampPreview, setStampPreview] = useState<string | null>(null)
   const [lastGeneratedUrl, setLastGeneratedUrl] = useState<string | null>(null) // NEW: Store last PDF URL for printing
   const [lastGeneratedDoc, setLastGeneratedDoc] = useState<DocumentConfig | null>(null)
+  const [printViewDoc, setPrintViewDoc] = useState<DocumentConfig | null>(null)
   const signatureInputRef = useRef<HTMLInputElement>(null)
   const stampInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(LAST_RECEIPT_DOC_STORAGE_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw) as DocumentConfig
+      if (parsed?.type === 'RECEIPT') {
+        setLastGeneratedDoc(parsed)
+      }
+    } catch {
+      // Ignore storage parsing issues.
+    }
+  }, [])
+
+  useEffect(() => {
+    try {
+      if (!lastGeneratedDoc || lastGeneratedDoc.type !== 'RECEIPT') {
+        window.sessionStorage.removeItem(LAST_RECEIPT_DOC_STORAGE_KEY)
+        return
+      }
+      window.sessionStorage.setItem(LAST_RECEIPT_DOC_STORAGE_KEY, JSON.stringify(lastGeneratedDoc))
+    } catch {
+      // Ignore storage write issues.
+    }
+  }, [lastGeneratedDoc])
 
   const addItem = useCallback(() => {
     setItems(prev => [...prev, {description: '', quantity: 0, unitPrice: 0, total: 0}])
@@ -555,71 +557,146 @@ export default function AdminPage() {
   const toggleType = (newType: 'RECEIPT' | 'WAYBILL') => {
     setType(newType)
     if (newType === 'RECEIPT') {
-      setCompanyName(GREENHILLS_CONFIG.name)
-      setLogoUrl(GREENHILLS_CONFIG.logo)
+      setCompanyName(asSafeText(GREENHILLS_CONFIG.name, 'Company Name'))
+      setLogoUrl(asOptionalText(GREENHILLS_CONFIG.logo))
       setLogoPreview(null)
-      setCompanyAddress(GREENHILLS_CONFIG.address)
-      setCompanyPhone(GREENHILLS_CONFIG.phone)
-      setCompanyEmail('billing@greenhills.com')
+      setCompanyAddress(asOptionalText(GREENHILLS_CONFIG.address))
+      setCompanyPhone(asOptionalText(GREENHILLS_CONFIG.phone))
+      setCompanyEmail((prev) => asOptionalText(prev))
     } else {
-      setCompanyName(SKYSHIP_CONFIG.name)
-      setLogoUrl(SKYSHIP_CONFIG.logo)
+      setCompanyName(asSafeText(SKYSHIP_CONFIG.name, 'Company Name'))
+      setLogoUrl(asOptionalText(SKYSHIP_CONFIG.logo))
       setLogoPreview(null)
     }
   }
 
+  const buildReceiptDocument = useCallback((trackingNumber?: string): DocumentConfig => {
+    const safeTrackingNumber = asSafeText(trackingNumber, generateTrackingId())
+    const normalizedItems = items.map((item) => {
+      const quantity = Number(item.quantity) || 0
+      const unitPrice = Number(item.unitPrice) || 0
+      const total = Number(item.total)
+
+      return {
+        description: asOptionalText(item.description),
+        quantity,
+        unitPrice,
+        total: Number.isFinite(total) ? total : quantity * unitPrice,
+        price: unitPrice,
+      }
+    })
+
+    return {
+      companyName: asSafeText(companyName, 'Company Name'),
+      logoUrl: asOptionalText(logoUrl),
+      type: 'RECEIPT',
+      items: normalizedItems,
+      origin: asOptionalText(origin),
+      destination: asOptionalText(destination),
+      trackingNumber: safeTrackingNumber,
+      status: 'PENDING',
+      receiptNumber: asSafeText(receiptNumber, safeTrackingNumber),
+      dateOfIssue: asSafeText(dateOfIssue, new Date().toISOString().split('T')[0]),
+      paymentMethod,
+      currency,
+      companyAddress: asOptionalText(companyAddress),
+      companyPhone: asOptionalText(companyPhone),
+      companyEmail: asOptionalText(companyEmail),
+      customerName: asOptionalText(customerName),
+      customerAddress: asOptionalText(customerAddress),
+      taxRate: Number(taxRate) || 0,
+      paid: Number(paid) || 0,
+      balance: Number(balance) || 0,
+      description: asOptionalText(receiptDescription),
+      receiptDescription: asOptionalText(receiptDescription),
+      signeeName: asSafeText(signeeName, 'Authorized Signatory'),
+      signatureUrl: asOptionalText(signatureUrl),
+      stampUrl: asOptionalText(stampUrl),
+    }
+  }, [
+    balance,
+    companyAddress,
+    companyEmail,
+    companyName,
+    companyPhone,
+    currency,
+    customerAddress,
+    customerName,
+    dateOfIssue,
+    destination,
+    items,
+    logoUrl,
+    origin,
+    paid,
+    paymentMethod,
+    receiptDescription,
+    receiptNumber,
+    signeeName,
+    signatureUrl,
+    stampUrl,
+    taxRate,
+  ])
+
   const generate = async () => {
     try {
       const trackingNumber = generateTrackingId()
-      const doc: DocumentConfig = {
-        companyName,
-        logoUrl: logoUrl || '',
-        type,
-        items: items.map(item => ({...item, price: item.unitPrice})),
-        origin,
-        destination,
-        trackingNumber,
-        status: 'PENDING',
-        // New professional fields
-        receiptNumber: receiptNumber || trackingNumber,
-        dateOfIssue: dateOfIssue || new Date().toISOString().split('T')[0],
-        paymentMethod,
-        currency,
-        companyAddress: companyAddress || '',
-        companyPhone: companyPhone || '',
-        companyEmail: companyEmail || '',
-        customerName: customerName || '',
-        customerAddress: customerAddress || '',
-        taxRate: taxRate || 0,
-        paid,
-        balance,
-        description: receiptDescription || '',
-        receiptDescription: receiptDescription || '',
-        signeeName: signeeName || 'Authorized Signatory',
-        signatureUrl: signatureUrl || '',
-        stampUrl: stampUrl || '',
-      }
+      const doc: DocumentConfig = type === 'RECEIPT'
+        ? buildReceiptDocument(trackingNumber)
+        : {
+            companyName,
+            logoUrl: logoUrl || '',
+            type,
+            items: items.map(item => ({ ...item, price: item.unitPrice })),
+            origin,
+            destination,
+            trackingNumber,
+            status: 'PENDING',
+            receiptNumber: receiptNumber || trackingNumber,
+            dateOfIssue: dateOfIssue || new Date().toISOString().split('T')[0],
+            paymentMethod,
+            currency,
+            companyAddress: companyAddress || '',
+            companyPhone: companyPhone || '',
+            companyEmail: companyEmail || '',
+            customerName: customerName || '',
+            customerAddress: customerAddress || '',
+            taxRate: taxRate || 0,
+            paid,
+            balance,
+            description: receiptDescription || '',
+            receiptDescription: receiptDescription || '',
+            signeeName: signeeName || 'Authorized Signatory',
+            signatureUrl: signatureUrl || '',
+            stampUrl: stampUrl || '',
+          }
 
-      console.log('Generating PDF with data:', doc)
-      const pdfUrl = await generateDocumentPDF(doc)
-      console.log('PDF generated successfully:', pdfUrl)
-      
-      // Store URL for printing
-      setLastGeneratedUrl(pdfUrl)
+      // Prepare receipt for print regardless of PDF behavior on the device.
       setLastGeneratedDoc(doc)
-      
-      // Optional: open or preview
-      const link = document.createElement('a')
-      link.href = pdfUrl
-      link.download = `${type.toLowerCase()}_${trackingNumber}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-
       setGenerated(prev => [doc, ...prev.slice(0, 4)])
-      
-      // Show success message
-      alert(`${type} generated successfully!`)
+
+      try {
+        console.log('Generating PDF with data:', doc)
+        const pdfUrl = await generateDocumentPDF(doc)
+        console.log('PDF generated successfully:', pdfUrl)
+
+        setLastGeneratedUrl(pdfUrl)
+
+        // Forced auto-download is unreliable on many phones and can disrupt state.
+        if (!isMobileBrowser()) {
+          const link = document.createElement('a')
+          link.href = pdfUrl
+          link.download = `${type.toLowerCase()}_${trackingNumber}.pdf`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+        }
+
+        alert(`${type} generated successfully!`)
+      } catch (pdfError) {
+        console.error('PDF generation warning:', pdfError)
+        setLastGeneratedUrl(null)
+        alert(`${type} prepared for printing. PDF copy is unavailable on this device/browser.`)
+      }
     } catch (error) {
       console.error('Error generating PDF:', error)
       alert(`Error generating ${type}: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -628,33 +705,19 @@ export default function AdminPage() {
 
   // NEW: Print function
   const handlePrint = () => {
-    if (!lastGeneratedDoc || lastGeneratedDoc.type !== 'RECEIPT') {
-      alert('Please generate a receipt first before printing.')
+    const hasLiveReceiptDraft = type === 'RECEIPT' && items.length > 0
+    const draftDoc = hasLiveReceiptDraft ? buildReceiptDocument(lastGeneratedDoc?.trackingNumber) : null
+    const targetDoc = draftDoc || lastGeneratedDoc
+
+    if (!targetDoc || targetDoc.type !== 'RECEIPT') {
+      alert('Add at least one item and generate or prepare a receipt before printing.')
       return
     }
 
-    const printMarkup = buildMobileReceiptPrintHtml(lastGeneratedDoc)
-    const printWindow = window.open('about:blank', '_blank')
-    if (printWindow && !printWindow.closed) {
-      printWindow.document.open()
-      printWindow.document.write(printMarkup)
-      printWindow.document.close()
-      return
+    if (draftDoc) {
+      setLastGeneratedDoc(draftDoc)
     }
-
-    try {
-      document.open()
-      document.write(printMarkup)
-      document.close()
-      return
-    } catch {
-      if (lastGeneratedUrl) {
-        window.location.assign(lastGeneratedUrl)
-        return
-      }
-    }
-
-    alert('Unable to open print view on this phone. Please allow pop-ups and try again.')
+    setPrintViewDoc(targetDoc)
   }
 
   const subtotal = items.reduce((sum, item) => sum + (item.total || (item.quantity * (item.unitPrice || 0))), 0)
@@ -717,6 +780,10 @@ export default function AdminPage() {
         </div>
       </div>
     )
+  }
+
+  if (printViewDoc) {
+    return <ReceiptPrintView data={printViewDoc} pdfUrl={lastGeneratedUrl} onBack={() => setPrintViewDoc(null)} />
   }
 
   return (
@@ -1266,6 +1333,7 @@ export default function AdminPage() {
           {/* Generate & Print Buttons */}
           <div className="flex flex-col gap-4 mt-8">
             <button
+              type="button"
               onClick={generate}
               disabled={items.length === 0}
               className="admin-action-primary w-full py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
@@ -1273,10 +1341,12 @@ export default function AdminPage() {
               Generate {type}
             </button>
             
-            {/* Print Button - Only show after generation */}
-            {lastGeneratedDoc?.type === 'RECEIPT' && (
+            {/* Print Button - supports current draft and generated receipts */}
+            {type === 'RECEIPT' && (
               <button
+                type="button"
                 onClick={handlePrint}
+                disabled={items.length === 0 && lastGeneratedDoc?.type !== 'RECEIPT'}
                 className="admin-action-secondary w-full py-4 px-6 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
