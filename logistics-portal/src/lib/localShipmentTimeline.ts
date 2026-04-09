@@ -17,6 +17,7 @@ export interface ShipmentTimelineInput {
   origin: string
   destination: string
   departureDate?: string
+  estimatedDeliveryDate?: string
 }
 
 interface StageTemplate {
@@ -225,6 +226,13 @@ function asDate(value?: string): Date {
   return new Date(parsed)
 }
 
+function asTimestamp(value?: string): number | null {
+  if (!value) return null
+  const parsed = Date.parse(value)
+  if (Number.isNaN(parsed)) return null
+  return parsed
+}
+
 function buildEventId(index: number): string {
   return `evt-${index + 1}-${Date.now().toString(36)}`
 }
@@ -238,12 +246,32 @@ export function generateLocalShipmentTimeline(input: ShipmentTimelineInput): Gen
   const template = [...BASE_STAGE_TEMPLATES[baseMode], ...ENDING_STAGE_TEMPLATES[input.deliveryType]]
 
   const startDate = asDate(input.departureDate)
-  let current = new Date(startDate)
+  const startMs = startDate.getTime()
+  const estimatedDeliveryMs = asTimestamp(input.estimatedDeliveryDate)
+
+  let elapsedMs = 0
+  const cumulativeMs = template.map((stage, index) => {
+    if (index === 0) return 0
+    const offsetHours = Math.max(0, stage.hoursFromPrevious * speedMultiplier)
+    elapsedMs += offsetHours * 60 * 60 * 1000
+    return elapsedMs
+  })
+
+  const baseTotalMs = cumulativeMs[cumulativeMs.length - 1] || 0
+  const useEstimatedWindow =
+    estimatedDeliveryMs !== null &&
+    estimatedDeliveryMs > startMs &&
+    baseTotalMs > 0
+  const targetWindowMs = useEstimatedWindow ? estimatedDeliveryMs - startMs : 0
 
   return template.map((stage, index) => {
-    const offsetHours = Math.max(0, Math.round(stage.hoursFromPrevious * speedMultiplier))
-    if (index > 0 || offsetHours > 0) {
-      current = new Date(current.getTime() + offsetHours * 60 * 60 * 1000)
+    let eventMs = startMs + Math.round(cumulativeMs[index] || 0)
+    if (useEstimatedWindow) {
+      const ratio = (cumulativeMs[index] || 0) / baseTotalMs
+      eventMs = startMs + Math.round(targetWindowMs * ratio)
+      if (index === template.length - 1) {
+        eventMs = estimatedDeliveryMs!
+      }
     }
 
     return {
@@ -251,9 +279,8 @@ export function generateLocalShipmentTimeline(input: ShipmentTimelineInput): Gen
       status: stage.status,
       location: resolveStageLocation(stage.locationRole, origin, destination, baseMode),
       description: stage.description,
-      eventTime: current.toISOString(),
+      eventTime: new Date(eventMs).toISOString(),
       isHold: false,
     }
   })
 }
-

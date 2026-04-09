@@ -23,6 +23,10 @@ const FIREBASE_WRITE_TIMEOUT_MS = 20000;
 const FIREBASE_READ_RETRIES = 2;
 const FIREBASE_WRITE_RETRIES = 1;
 const MAX_TRACKING_EVENTS_PER_WAYBILL = 250;
+const LEGACY_TIMELINE_ALIGNMENT_MARKER_FIELD = 'timelineDateAlignedAt';
+const LEGACY_TIMELINE_ALIGNMENT_VERSION_FIELD = 'timelineDateAlignmentVersion';
+const LEGACY_TIMELINE_ALIGNMENT_VERSION = 'booking-estimated-v1';
+const LEGACY_TIMELINE_ALIGNMENT_TOLERANCE_MS = 12 * 60 * 60 * 1000;
 
 export type WaybillServiceErrorKind =
   | 'network'
@@ -428,6 +432,139 @@ function shiftEventsAfterHoldRelease(
   });
 }
 
+interface TimelineWindow {
+  startMs: number;
+  endMs: number;
+}
+
+interface TimelineAlignmentResult {
+  waybill: Waybill;
+  corrected: boolean;
+  markerValue?: string;
+}
+
+function parseIsoTimestamp(value: unknown): number | null {
+  if (typeof value !== 'string') return null;
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return null;
+  return parsed;
+}
+
+function resolveTimelineWindow(waybill: Waybill): TimelineWindow | null {
+  const startCandidates = [waybill.bookingDate, waybill.dateOfIssue, waybill.departureDate, waybill.createdAt];
+  const endCandidates = [waybill.estimatedDeliveryDate, waybill.estimatedArrivalDate, waybill.arrivalDate];
+
+  let startMs: number | null = null;
+  for (const candidate of startCandidates) {
+    const parsed = parseIsoTimestamp(candidate);
+    if (parsed !== null) {
+      startMs = parsed;
+      break;
+    }
+  }
+
+  let endMs: number | null = null;
+  for (const candidate of endCandidates) {
+    const parsed = parseIsoTimestamp(candidate);
+    if (parsed !== null) {
+      endMs = parsed;
+      break;
+    }
+  }
+
+  if (startMs === null || endMs === null || endMs <= startMs) {
+    return null;
+  }
+
+  return { startMs, endMs };
+}
+
+function hasLegacyTimelineAlignmentMarker(waybill: Waybill): boolean {
+  const marker = (waybill as Record<string, unknown>)[LEGACY_TIMELINE_ALIGNMENT_MARKER_FIELD];
+  return typeof marker === 'string' && marker.trim().length > 0;
+}
+
+function alignEventsToWindow(events: TrackingEvent[], startMs: number, endMs: number): TrackingEvent[] {
+  const ordered = dedupeAndSortEvents(events);
+  if (ordered.length < 2) return ordered;
+
+  const firstMs = parseIsoTimestamp(ordered[0]?.eventTime) ?? startMs;
+  const lastMs = parseIsoTimestamp(ordered[ordered.length - 1]?.eventTime) ?? firstMs;
+  const sourceDuration = Math.max(lastMs - firstMs, 0);
+  const targetDuration = endMs - startMs;
+
+  let previousMs = startMs;
+  return ordered.map((event, index) => {
+    const isFirst = index === 0;
+    const isLast = index === ordered.length - 1;
+
+    let nextMs = startMs;
+    if (isFirst) {
+      nextMs = startMs;
+    } else if (isLast) {
+      nextMs = endMs;
+    } else if (sourceDuration > 0) {
+      const eventMs = parseIsoTimestamp(event.eventTime) ?? firstMs;
+      const ratio = Math.min(Math.max((eventMs - firstMs) / sourceDuration, 0), 1);
+      nextMs = startMs + Math.round(targetDuration * ratio);
+    } else {
+      const ratio = index / (ordered.length - 1);
+      nextMs = startMs + Math.round(targetDuration * ratio);
+    }
+
+    if (nextMs < previousMs) {
+      nextMs = previousMs;
+    }
+    previousMs = nextMs;
+
+    return {
+      ...event,
+      eventTime: new Date(nextMs).toISOString(),
+    };
+  });
+}
+
+function shouldApplyLegacyTimelineAlignment(waybill: Waybill, events: TrackingEvent[], window: TimelineWindow): boolean {
+  if (hasLegacyTimelineAlignmentMarker(waybill)) return false;
+  if (waybill.timelineOnHold) return false;
+  if (events.some((event) => event.isHold)) return false;
+  if (events.length < 2) return false;
+
+  const firstMs = parseIsoTimestamp(events[0]?.eventTime);
+  const lastMs = parseIsoTimestamp(events[events.length - 1]?.eventTime);
+  if (firstMs === null || lastMs === null) return false;
+
+  const startDelta = Math.abs(firstMs - window.startMs);
+  const endDelta = Math.abs(lastMs - window.endMs);
+  return startDelta > LEGACY_TIMELINE_ALIGNMENT_TOLERANCE_MS || endDelta > LEGACY_TIMELINE_ALIGNMENT_TOLERANCE_MS;
+}
+
+function applyLegacyTimelineDateAlignment(waybill: Waybill): TimelineAlignmentResult {
+  const existingEvents = dedupeAndSortEvents(Array.isArray(waybill.trackingEvents) ? waybill.trackingEvents : []);
+  if (existingEvents.length < 2) {
+    return { waybill: { ...waybill, trackingEvents: existingEvents }, corrected: false };
+  }
+
+  const window = resolveTimelineWindow(waybill);
+  if (!window || !shouldApplyLegacyTimelineAlignment(waybill, existingEvents, window)) {
+    return { waybill: { ...waybill, trackingEvents: existingEvents }, corrected: false };
+  }
+
+  const correctedEvents = alignEventsToWindow(existingEvents, window.startMs, window.endMs);
+  if (JSON.stringify(correctedEvents) === JSON.stringify(existingEvents)) {
+    return { waybill: { ...waybill, trackingEvents: existingEvents }, corrected: false };
+  }
+
+  return {
+    waybill: {
+      ...waybill,
+      trackingEvents: correctedEvents,
+    },
+    corrected: true,
+    markerValue: new Date().toISOString(),
+  };
+}
+
 export function createInitialTrackingEvents(origin: string): TrackingEvent[] {
   const now = new Date();
   const created = new Date(now.getTime() + 1000);
@@ -537,8 +674,10 @@ export function buildStoredWaybillFromFormData(waybillData: WaybillFormData): Wa
 }
 
 async function syncRuntimeState(docRef: DocumentReference, data: Waybill): Promise<Waybill> {
-  const runtimeWaybill = applyRuntimeToWaybill(data);
+  const timelineAlignment = applyLegacyTimelineDateAlignment(data);
+  const runtimeWaybill = applyRuntimeToWaybill(timelineAlignment.waybill);
   const hasChanged =
+    timelineAlignment.corrected ||
     runtimeWaybill.currentStatus !== data.currentStatus ||
     runtimeWaybill.currentLocation !== data.currentLocation ||
     runtimeWaybill.timelineOnHold !== data.timelineOnHold ||
@@ -551,6 +690,11 @@ async function syncRuntimeState(docRef: DocumentReference, data: Waybill): Promi
       trackingEvents: runtimeWaybill.trackingEvents,
       timelineOnHold: runtimeWaybill.timelineOnHold,
       updatedAt: new Date().toISOString(),
+      ...(timelineAlignment.corrected &&
+        timelineAlignment.markerValue && {
+          [LEGACY_TIMELINE_ALIGNMENT_MARKER_FIELD]: timelineAlignment.markerValue,
+          [LEGACY_TIMELINE_ALIGNMENT_VERSION_FIELD]: LEGACY_TIMELINE_ALIGNMENT_VERSION,
+        }),
       ...(runtimeWaybill.deliveredDate && { deliveredDate: runtimeWaybill.deliveredDate }),
     });
     await runFirestoreOperation(

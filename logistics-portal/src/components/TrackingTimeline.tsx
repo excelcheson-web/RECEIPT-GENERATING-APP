@@ -76,6 +76,13 @@ function buildTimelineRows(events: TrackingEvent[], activeEventIndex = -1, isOnH
   })
 }
 
+function timelineTimestampLabel(row: TimelineRow, index: number, totalRows: number): string | null {
+  const isFinalMilestone = index === totalRows - 1
+  const hasReachedFinalMilestone = row.state === 'current' || row.state === 'completed'
+  if (!isFinalMilestone || !hasReachedFinalMilestone) return null
+  return formatTimestamp(row.eventTime)
+}
+
 export const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ events, activeEventIndex = -1, isOnHold = false }) => {
   const rows = buildTimelineRows(events || [], activeEventIndex, isOnHold)
 
@@ -101,8 +108,9 @@ export const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ events, acti
         <ol className="relative pl-7">
           <div className="absolute left-3 top-1 bottom-1 w-px bg-gradient-to-b from-lime-300/60 via-[#5f7ea5] to-[#3a5678]" />
 
-          {rows.map((row) => {
+          {rows.map((row, index) => {
             const badgeLabel = row.state === 'completed' ? 'Completed' : row.state === 'current' ? 'Current' : row.state === 'hold' ? 'On Hold' : 'Upcoming'
+            const timestamp = timelineTimestampLabel(row, index, rows.length)
             return (
               <li key={row.key} className="relative mb-4 last:mb-0">
                 <span
@@ -123,7 +131,7 @@ export const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ events, acti
                   </div>
                   <p className="text-xs font-medium text-[#b7cde7]">{row.location}</p>
                   <p className="mt-1 text-xs leading-relaxed text-[#95adc9]">{row.description}</p>
-                  <p className="mt-2 text-[11px] text-[#7f99b7]">{formatTimestamp(row.eventTime)}</p>
+                  {timestamp && <p className="mt-2 text-[11px] text-[#7f99b7]">{timestamp}</p>}
                 </article>
               </li>
             )

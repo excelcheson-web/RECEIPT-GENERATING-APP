@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useSmartDefaults } from '@/hooks/useSmartDefaults'
 import { AddressBookDropdown } from './AddressBookDropdown'
 import { StatusToggles } from './StatusToggles'
@@ -179,6 +179,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       origin: getModeLocation(departureCountry, transportMode),
       destination: getModeLocation(destinationCountry, transportMode),
       departureDate: smartDefaults.dateOfIssue,
+      estimatedDeliveryDate: smartDefaults.estimatedArrivalDate,
     })
   )
 
@@ -190,6 +191,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       origin: overrides.origin || userInput.portOfDeparture || getModeLocation(departureCountry, transportMode),
       destination: overrides.destination || userInput.portOfDestination || getModeLocation(destinationCountry, transportMode),
       departureDate: overrides.departureDate || smartDefaults.dateOfIssue,
+      estimatedDeliveryDate: overrides.estimatedDeliveryDate || smartDefaults.estimatedArrivalDate,
     }),
     [
       deliveryType,
@@ -197,6 +199,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       destinationCountry,
       serviceType,
       smartDefaults.dateOfIssue,
+      smartDefaults.estimatedArrivalDate,
       transportMode,
       userInput.portOfDeparture,
       userInput.portOfDestination,
@@ -207,6 +210,13 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
     const next = generateLocalShipmentTimeline(buildTimelineInput(overrides))
     setProjectedTimeline(next)
   }, [buildTimelineInput])
+
+  useEffect(() => {
+    regenerateProjectedTimeline({
+      departureDate: smartDefaults.dateOfIssue,
+      estimatedDeliveryDate: smartDefaults.estimatedArrivalDate,
+    })
+  }, [regenerateProjectedTimeline, smartDefaults.dateOfIssue, smartDefaults.estimatedArrivalDate])
 
   // Handle transport mode change
   const handleTransportModeChange = (mode: TransportMode) => {
@@ -266,7 +276,18 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
 
     setIsGenerating(true)
     try {
-      const localTimelineForWaybill = projectedTimeline.map((event) => ({
+      const timelineForWaybill = generateLocalShipmentTimeline(
+        buildTimelineInput({
+          origin: completeFormData.portOfDeparture || getModeLocation(departureCountry, transportMode),
+          destination: completeFormData.portOfDestination || getModeLocation(destinationCountry, transportMode),
+          departureDate: completeFormData.dateOfIssue || completeFormData.departureDate || smartDefaults.dateOfIssue,
+          estimatedDeliveryDate: completeFormData.estimatedArrivalDate || completeFormData.estimatedDeliveryDate,
+        })
+      )
+
+      setProjectedTimeline(timelineForWaybill)
+
+      const localTimelineForWaybill = timelineForWaybill.map((event) => ({
         status: event.status,
         location: event.location,
         description: event.description,
