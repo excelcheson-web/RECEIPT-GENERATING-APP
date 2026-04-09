@@ -266,23 +266,43 @@ function buildMobileReceiptPrintHtml(data: DocumentConfig): string {
   </article>
 
   <div class="print-controls">
-    <button type="button" onclick="window.print()">Print Receipt</button>
-    <button type="button" class="secondary" onclick="window.close()">Close</button>
+    <button id="print-now" type="button" onclick="window.print()">Print Receipt</button>
+    <button
+      type="button"
+      class="secondary"
+      onclick="if (window.opener) { window.close(); } else if (window.history.length > 1) { window.history.back(); } else { window.location.href = '/admin'; }"
+    >
+      Back to App
+    </button>
   </div>
+  <p style="max-width:430px;margin:10px auto 0;font-size:12px;color:#4c6380;line-height:1.4;">
+    If print dialog does not open automatically on your phone, tap <strong>Print Receipt</strong>.
+  </p>
 
   <script>
     (function () {
-      var trigger = function () {
-        window.setTimeout(function () {
-          window.focus();
+      var ua = navigator.userAgent || '';
+      var isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var printButton = document.getElementById('print-now');
+      if (printButton) {
+        printButton.addEventListener('click', function () {
           window.print();
-        }, 180);
-      };
+        });
+      }
 
-      if (document.readyState === 'complete') {
-        trigger();
-      } else {
-        window.addEventListener('load', trigger, { once: true });
+      if (!isIOS) {
+        var trigger = function () {
+          window.setTimeout(function () {
+            window.focus();
+            window.print();
+          }, 180);
+        };
+
+        if (document.readyState === 'complete') {
+          trigger();
+        } else {
+          window.addEventListener('load', trigger, { once: true });
+        }
       }
     })();
   </script>
@@ -613,20 +633,28 @@ export default function AdminPage() {
       return
     }
 
-    const printWindow = window.open('', '_blank', 'noopener,noreferrer')
-    if (!printWindow) {
-      if (lastGeneratedUrl) {
-        window.open(lastGeneratedUrl, '_blank', 'noopener,noreferrer')
-      } else {
-        alert('Unable to open print window. Please allow pop-ups and try again.')
-      }
+    const printMarkup = buildMobileReceiptPrintHtml(lastGeneratedDoc)
+    const printWindow = window.open('about:blank', '_blank')
+    if (printWindow && !printWindow.closed) {
+      printWindow.document.open()
+      printWindow.document.write(printMarkup)
+      printWindow.document.close()
       return
     }
 
-    const printMarkup = buildMobileReceiptPrintHtml(lastGeneratedDoc)
-    printWindow.document.open()
-    printWindow.document.write(printMarkup)
-    printWindow.document.close()
+    try {
+      document.open()
+      document.write(printMarkup)
+      document.close()
+      return
+    } catch {
+      if (lastGeneratedUrl) {
+        window.location.assign(lastGeneratedUrl)
+        return
+      }
+    }
+
+    alert('Unable to open print view on this phone. Please allow pop-ups and try again.')
   }
 
   const subtotal = items.reduce((sum, item) => sum + (item.total || (item.quantity * (item.unitPrice || 0))), 0)
