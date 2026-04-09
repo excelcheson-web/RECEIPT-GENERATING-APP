@@ -10,7 +10,6 @@ import {
   updateDoc,
   query,
   where,
-  arrayUnion,
 } from 'firebase/firestore';
 import type { StoredWaybill, TrackingEventRecord, WaybillFormData } from '@/lib/types';
 import { applyRuntimeToWaybill, normalizeTrackingEvents } from '@/lib/trackingAutomation';
@@ -720,24 +719,25 @@ export async function updateWaybillStatus(waybillNumber: string, status: string,
   }
 
   const docRef = doc(db, WAYBILLS_COLLECTION, normalizedWaybillNumber);
+  const snap = await runFirestoreOperation(
+    'updateWaybillStatus:getDoc',
+    () => getDoc(docRef),
+    { timeoutMs: FIREBASE_READ_TIMEOUT_MS, retries: FIREBASE_READ_RETRIES }
+  );
+
+  if (!snap.exists()) return;
+
+  const data = snap.data() as Waybill;
+  const nowIso = new Date().toISOString();
+  const fallbackLocation = data.currentLocation || data.origin || 'Unknown Location';
   const event: TrackingEvent = {
-    status,
-    location,
+    status: status.trim() || 'Status Update',
+    location: (location || fallbackLocation).trim() || fallbackLocation,
     description: description || `Status updated to ${status}`,
-    eventTime: new Date().toISOString(),
+    eventTime: nowIso,
+    isHold: false,
   };
 
-  const updatePayload = sanitizeForFirestoreWrite({
-    currentStatus: status,
-    currentLocation: location,
-    trackingEvents: arrayUnion(event),
-    updatedAt: new Date().toISOString(),
-    ...(status === 'Delivered' && { deliveredDate: new Date().toISOString() }),
-  });
-
-  await runFirestoreOperation(
-    'updateWaybillStatus:updateDoc',
-    () => updateDoc(docRef, updatePayload as Record<string, unknown>),
-    { timeoutMs: FIREBASE_WRITE_TIMEOUT_MS, retries: FIREBASE_WRITE_RETRIES }
-  );
+  const existing = Array.isArray(data.trackingEvents) ? data.trackingEvents : [];
+  await updateWaybillTimeline(normalizedWaybillNumber, [...existing, event]);
 }

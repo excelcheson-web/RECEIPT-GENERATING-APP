@@ -52,6 +52,244 @@ const ADMIN_AUTH_KEY = 'skyship_admin_auth'
 const FALLBACK_ADMIN_USERNAME = process.env.NEXT_PUBLIC_ADMIN_USERNAME ?? 'Dragon404'
 const FALLBACK_ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? '56920lK'
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function asSafeText(value: string | undefined, fallback: string): string {
+  const trimmed = (value || '').trim()
+  return trimmed || fallback
+}
+
+function asSafeHtml(value: string | undefined, fallback: string): string {
+  return escapeHtml(asSafeText(value, fallback)).replace(/\n/g, '<br />')
+}
+
+function formatPrintCurrency(currency: DocumentConfig['currency'], amount: number): string {
+  const symbol = getCurrencySymbol(currency || 'USD')
+  return `${symbol}${amount.toFixed(2)}`
+}
+
+function buildMobileReceiptPrintHtml(data: DocumentConfig): string {
+  const companyName = asSafeText(data.companyName, 'Company Name')
+  const companyAddress = asSafeText(data.companyAddress, 'Not provided')
+  const companyPhone = asSafeText(data.companyPhone, 'Not provided')
+  const companyEmail = asSafeText(data.companyEmail, 'Not provided')
+  const customerName = asSafeText(data.customerName, 'Customer Name')
+  const customerAddress = asSafeText(data.customerAddress, 'Customer Address')
+  const receiptNumber = asSafeText(data.receiptNumber, data.trackingNumber || 'N/A')
+  const issueDate = asSafeText(data.dateOfIssue, new Date().toISOString().split('T')[0])
+  const paymentMethod = asSafeText(data.paymentMethod, 'Not provided')
+  const transferMode = asSafeText(data.transferMode, 'Not provided')
+  const notes = asSafeText(data.notes, 'Payment is due as agreed. Please include receipt number on all payments.')
+  const memo = asSafeText(data.receiptDescription || data.description, '-')
+  const signeeName = asSafeText(data.signeeName, 'Authorized Signatory')
+  const taxRate = typeof data.taxRate === 'number' ? data.taxRate : 0
+  const paid = typeof data.paid === 'number' ? data.paid : 0
+  const items = Array.isArray(data.items) ? data.items : []
+
+  let subtotal = 0
+  const itemRows = items.length
+    ? items
+        .map((item) => {
+          const quantity = Number(item.quantity) || 0
+          const unitPrice = Number(item.price) || 0
+          const total = quantity * unitPrice
+          subtotal += total
+          return `
+            <tr>
+              <td>${escapeHtml(asSafeText(item.description, '-'))}</td>
+              <td class="num">${quantity}</td>
+              <td class="num">${formatPrintCurrency(data.currency, unitPrice)}</td>
+              <td class="num">${formatPrintCurrency(data.currency, total)}</td>
+            </tr>
+          `
+        })
+        .join('')
+    : '<tr><td colspan="4">No line items available.</td></tr>'
+
+  const tax = subtotal * (taxRate / 100)
+  const grandTotal = subtotal + tax
+  const balance = grandTotal - paid
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Receipt ${escapeHtml(receiptNumber)}</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; overflow-x: visible; }
+    body {
+      margin: 0;
+      padding: 12px;
+      background: #f3f7fb;
+      color: #10243b;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .receipt {
+      width: 100%;
+      max-width: 430px;
+      margin: 0 auto;
+      background: #ffffff;
+      border: 1px solid #d4deea;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .header { border-bottom: 1px solid #d4deea; padding-bottom: 10px; margin-bottom: 10px; }
+    .title { margin: 0; font-size: 20px; letter-spacing: 0.04em; }
+    .meta, .section { margin-top: 10px; }
+    .meta-grid, .section-grid { display: grid; gap: 6px; }
+    .meta-grid { grid-template-columns: 1fr 1fr; }
+    .label { font-size: 11px; text-transform: uppercase; color: #4c6380; letter-spacing: 0.04em; }
+    .value { font-size: 13px; font-weight: 600; color: #10243b; word-break: break-word; }
+    .muted { font-size: 12px; color: #45607f; line-height: 1.45; word-break: break-word; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; table-layout: fixed; }
+    th, td { border: 1px solid #d4deea; padding: 6px; text-align: left; vertical-align: top; word-break: break-word; }
+    th { background: #e8f0fa; font-size: 11px; text-transform: uppercase; color: #304b67; }
+    .num { text-align: right; white-space: nowrap; }
+    .totals { margin-top: 10px; border: 1px solid #d4deea; border-radius: 10px; padding: 8px; }
+    .totals-row { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-top: 4px; }
+    .totals-row:first-child { margin-top: 0; }
+    .totals-row strong { font-size: 14px; }
+    .sign { margin-top: 14px; padding-top: 10px; border-top: 1px dashed #b8c7da; font-size: 12px; color: #314a67; }
+    .print-controls { margin: 14px auto 0; max-width: 430px; display: flex; gap: 8px; }
+    .print-controls button {
+      flex: 1;
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #ffffff;
+      background: #1f4c7a;
+    }
+    .print-controls button.secondary { background: #586b85; }
+    @media screen and (max-width: 480px) {
+      body { padding: 8px; }
+      .receipt { padding: 12px; border-radius: 10px; }
+      .meta-grid { grid-template-columns: 1fr; }
+      th, td { padding: 5px; font-size: 11px; }
+      .title { font-size: 18px; }
+    }
+    @page { size: auto; margin: 10mm; }
+    @media print {
+      body { background: #ffffff; padding: 0; }
+      .receipt {
+        max-width: none;
+        border: 0;
+        border-radius: 0;
+        padding: 0;
+      }
+      .print-controls { display: none !important; }
+      table, tr, td, th, .totals, .section { page-break-inside: avoid; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <article class="receipt">
+    <header class="header">
+      <p class="label">Company</p>
+      <h1 class="title">${escapeHtml(companyName)}</h1>
+      <p class="muted">${asSafeHtml(companyAddress, 'Not provided')}</p>
+      <p class="muted">${escapeHtml(companyPhone)} | ${escapeHtml(companyEmail)}</p>
+    </header>
+
+    <section class="meta">
+      <div class="meta-grid">
+        <div>
+          <p class="label">Receipt Number</p>
+          <p class="value">${escapeHtml(receiptNumber)}</p>
+        </div>
+        <div>
+          <p class="label">Issue Date</p>
+          <p class="value">${escapeHtml(issueDate)}</p>
+        </div>
+        <div>
+          <p class="label">Payment Method</p>
+          <p class="value">${escapeHtml(paymentMethod)}</p>
+        </div>
+        <div>
+          <p class="label">Transfer Mode</p>
+          <p class="value">${escapeHtml(transferMode)}</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <p class="label">Bill To</p>
+      <p class="value">${escapeHtml(customerName)}</p>
+      <p class="muted">${asSafeHtml(customerAddress, 'Customer Address')}</p>
+    </section>
+
+    <section class="section">
+      <table aria-label="Receipt Items">
+        <thead>
+          <tr>
+            <th style="width: 46%;">Description</th>
+            <th style="width: 14%;" class="num">Qty</th>
+            <th style="width: 20%;" class="num">Unit</th>
+            <th style="width: 20%;" class="num">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemRows}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="totals">
+      <div class="totals-row"><span>Subtotal</span><span>${formatPrintCurrency(data.currency, subtotal)}</span></div>
+      <div class="totals-row"><span>VAT (${taxRate}%)</span><span>${formatPrintCurrency(data.currency, tax)}</span></div>
+      <div class="totals-row"><span>Paid</span><span>${formatPrintCurrency(data.currency, paid)}</span></div>
+      <div class="totals-row"><span>Balance</span><span>${formatPrintCurrency(data.currency, balance)}</span></div>
+      <div class="totals-row"><strong>Grand Total</strong><strong>${formatPrintCurrency(data.currency, grandTotal)}</strong></div>
+    </section>
+
+    <section class="section">
+      <p class="label">Notes</p>
+      <p class="muted">${asSafeHtml(notes, '-')}</p>
+      <p class="label" style="margin-top: 8px;">Memo</p>
+      <p class="muted">${asSafeHtml(memo, '-')}</p>
+    </section>
+
+    <p class="sign">Authorized Signatory: ${escapeHtml(signeeName)}</p>
+  </article>
+
+  <div class="print-controls">
+    <button type="button" onclick="window.print()">Print Receipt</button>
+    <button type="button" class="secondary" onclick="window.close()">Close</button>
+  </div>
+
+  <script>
+    (function () {
+      var trigger = function () {
+        window.setTimeout(function () {
+          window.focus();
+          window.print();
+        }, 180);
+      };
+
+      if (document.readyState === 'complete') {
+        trigger();
+      } else {
+        window.addEventListener('load', trigger, { once: true });
+      }
+    })();
+  </script>
+</body>
+</html>`
+}
+
 export default function AdminPage() {
   const [isAuthReady, setIsAuthReady] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -162,6 +400,7 @@ export default function AdminPage() {
   const [stampUrl, setStampUrl] = useState('')
   const [stampPreview, setStampPreview] = useState<string | null>(null)
   const [lastGeneratedUrl, setLastGeneratedUrl] = useState<string | null>(null) // NEW: Store last PDF URL for printing
+  const [lastGeneratedDoc, setLastGeneratedDoc] = useState<DocumentConfig | null>(null)
   const signatureInputRef = useRef<HTMLInputElement>(null)
   const stampInputRef = useRef<HTMLInputElement>(null)
 
@@ -326,9 +565,9 @@ export default function AdminPage() {
         dateOfIssue: dateOfIssue || new Date().toISOString().split('T')[0],
         paymentMethod,
         currency,
-        companyAddress: companyAddress || GREENHILLS_CONFIG.address,
-        companyPhone: companyPhone || GREENHILLS_CONFIG.phone,
-        companyEmail: companyEmail || 'billing@greenhills.com',
+        companyAddress: companyAddress || '',
+        companyPhone: companyPhone || '',
+        companyEmail: companyEmail || '',
         customerName: customerName || '',
         customerAddress: customerAddress || '',
         taxRate: taxRate || 0,
@@ -347,6 +586,7 @@ export default function AdminPage() {
       
       // Store URL for printing
       setLastGeneratedUrl(pdfUrl)
+      setLastGeneratedDoc(doc)
       
       // Optional: open or preview
       const link = document.createElement('a')
@@ -368,18 +608,25 @@ export default function AdminPage() {
 
   // NEW: Print function
   const handlePrint = () => {
-    if (!lastGeneratedUrl) {
+    if (!lastGeneratedDoc || lastGeneratedDoc.type !== 'RECEIPT') {
       alert('Please generate a receipt first before printing.')
       return
     }
-    
-    // Open PDF in new window for printing
-    const printWindow = window.open(lastGeneratedUrl, '_blank')
-    if (printWindow) {
-      printWindow.onload = () => {
-        printWindow.print()
+
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer')
+    if (!printWindow) {
+      if (lastGeneratedUrl) {
+        window.open(lastGeneratedUrl, '_blank', 'noopener,noreferrer')
+      } else {
+        alert('Unable to open print window. Please allow pop-ups and try again.')
       }
+      return
     }
+
+    const printMarkup = buildMobileReceiptPrintHtml(lastGeneratedDoc)
+    printWindow.document.open()
+    printWindow.document.write(printMarkup)
+    printWindow.document.close()
   }
 
   const subtotal = items.reduce((sum, item) => sum + (item.total || (item.quantity * (item.unitPrice || 0))), 0)
@@ -999,7 +1246,7 @@ export default function AdminPage() {
             </button>
             
             {/* Print Button - Only show after generation */}
-            {lastGeneratedUrl && (
+            {lastGeneratedDoc?.type === 'RECEIPT' && (
               <button
                 onClick={handlePrint}
                 className="admin-action-secondary w-full py-4 px-6 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
@@ -1007,7 +1254,7 @@ export default function AdminPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                 </svg>
-                Print {type}
+                Print Receipt
               </button>
             )}
           </div>

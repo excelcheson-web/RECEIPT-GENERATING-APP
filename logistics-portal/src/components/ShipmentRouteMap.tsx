@@ -1,12 +1,12 @@
 import React from 'react'
 import type { TrackingEvent } from './TrackingTimeline'
-import { computeRuntimeTrackingState } from '@/lib/trackingAutomation'
 
 interface ShipmentRouteMapProps {
   origin: string
   destination: string
   currentLocation: string
   events: TrackingEvent[]
+  activeEventIndex?: number
 }
 
 function safeLabel(value: string, fallback: string): string {
@@ -14,19 +14,18 @@ function safeLabel(value: string, fallback: string): string {
   return trimmed || fallback
 }
 
-function progressFromEvents(events: TrackingEvent[]): number {
-  const runtime = computeRuntimeTrackingState(events || [])
-  if (!runtime.events.length) return 0
-  if (runtime.activeEventIndex < 0) return 0.05
-  const maxIndex = Math.max(runtime.events.length - 1, 1)
-  return Math.min(Math.max(runtime.activeEventIndex / maxIndex, 0), 1)
+function progressFromEvents(events: TrackingEvent[], activeEventIndex = -1): number {
+  if (!events.length) return 0
+  if (activeEventIndex < 0) return 0.05
+  const maxIndex = Math.max(events.length - 1, 1)
+  return Math.min(Math.max(activeEventIndex / maxIndex, 0), 1)
 }
 
-export const ShipmentRouteMap: React.FC<ShipmentRouteMapProps> = ({ origin, destination, currentLocation, events }) => {
+export const ShipmentRouteMap: React.FC<ShipmentRouteMapProps> = ({ origin, destination, currentLocation, events, activeEventIndex = -1 }) => {
   const from = safeLabel(origin, 'Origin')
   const to = safeLabel(destination, 'Destination')
   const current = safeLabel(currentLocation, from)
-  const progress = progressFromEvents(events)
+  const progress = progressFromEvents(events, activeEventIndex)
   const dotX = 18 + progress * 64
   const progressPct = Math.round(progress * 100)
 

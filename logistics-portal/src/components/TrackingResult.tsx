@@ -82,7 +82,10 @@ export const TrackingResult: React.FC<TrackingResultProps> = ({ waybill, layout 
 
   const data = normalizeWaybill(waybill)
   const runtime = computeRuntimeTrackingState(data.trackingEvents)
+  const runtimeEvents = runtime.events as TrackingEvent[]
   const activeEvent = runtime.activeEventIndex >= 0 ? runtime.events[runtime.activeEventIndex] : null
+  const currentStatus = runtime.currentStatus || data.currentStatus
+  const currentLocation = runtime.currentLocation || data.currentLocation
   const transportCodeLabel = data.shipmentMode.toUpperCase().includes('SEA') ? 'SCAC Code' : 'IATA / Carrier Code'
   const wrapClass = layout === 'vertical' ? 'grid grid-cols-1 gap-6' : 'grid grid-cols-1 xl:grid-cols-12 gap-6'
   const leftClass = layout === 'vertical' ? '' : 'xl:col-span-7'
@@ -101,34 +104,35 @@ export const TrackingResult: React.FC<TrackingResultProps> = ({ waybill, layout 
               </p>
             </div>
 
-            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass(data.currentStatus)}`}>
-              {data.currentStatus}
+            <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold ${statusBadgeClass(currentStatus)}`}>
+              {currentStatus}
             </span>
           </div>
 
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Waybill Number" value={data.waybillNumber} />
-            <Field label="Current Location" value={data.currentLocation} />
+            <Field label="Current Location" value={currentLocation} />
             <Field label="Booked On" value={formatDateValue(data.bookingDate)} />
             <Field label="Estimated Delivery" value={formatDateValue(data.estimatedDeliveryDate)} />
           </div>
 
           <div className="mt-5 rounded-xl border border-lime-300/30 bg-lime-400/10 p-4">
             <p className="text-xs uppercase tracking-wide text-lime-200">Current Status Highlight</p>
-            <p className="mt-1 text-sm font-semibold text-white">{activeEvent?.status || data.currentStatus}</p>
-            <p className="text-sm text-[#d7e4f6]">{activeEvent?.location || data.currentLocation}</p>
+            <p className="mt-1 text-sm font-semibold text-white">{activeEvent?.status || currentStatus}</p>
+            <p className="text-sm text-[#d7e4f6]">{activeEvent?.location || currentLocation}</p>
             <p className="mt-1 text-xs text-[#b8cae1]">
               {activeEvent ? formatDateValue(activeEvent.eventTime) : formatDateValue(data.lastUpdated)}
             </p>
           </div>
         </article>
 
-        <TrackingTimeline events={data.trackingEvents as TrackingEvent[]} currentStatus={data.currentStatus} />
+        <TrackingTimeline events={runtimeEvents} activeEventIndex={runtime.activeEventIndex} isOnHold={runtime.isOnHold} />
         <ShipmentRouteMap
           origin={data.origin}
           destination={data.destination}
-          currentLocation={data.currentLocation}
-          events={data.trackingEvents as TrackingEvent[]}
+          currentLocation={currentLocation}
+          events={runtimeEvents}
+          activeEventIndex={runtime.activeEventIndex}
         />
       </div>
 

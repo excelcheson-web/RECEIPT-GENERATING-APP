@@ -1,5 +1,4 @@
 import React from 'react'
-import { computeRuntimeTrackingState } from '@/lib/trackingAutomation'
 
 export interface TrackingEvent {
   status: string
@@ -11,7 +10,8 @@ export interface TrackingEvent {
 
 interface TrackingTimelineProps {
   events: TrackingEvent[]
-  currentStatus?: string
+  activeEventIndex?: number
+  isOnHold?: boolean
 }
 
 type TimelineState = 'completed' | 'current' | 'upcoming' | 'hold'
@@ -56,18 +56,15 @@ function getCardClasses(state: TimelineState): string {
   return 'border-[#355275] bg-[#132c47]'
 }
 
-function buildTimelineRows(events: TrackingEvent[], currentStatus?: string): TimelineRow[] {
-  const runtime = computeRuntimeTrackingState(events)
-  const statusHasHold = (currentStatus || '').toLowerCase().includes('hold')
-
-  return runtime.events.map((event, index) => {
+function buildTimelineRows(events: TrackingEvent[], activeEventIndex = -1, isOnHold = false): TimelineRow[] {
+  return events.map((event, index) => {
     let state: TimelineState = 'upcoming'
 
-    if (runtime.activeEventIndex >= 0) {
-      if (index < runtime.activeEventIndex) {
+    if (activeEventIndex >= 0) {
+      if (index < activeEventIndex) {
         state = 'completed'
-      } else if (index === runtime.activeEventIndex) {
-        state = runtime.isOnHold || statusHasHold ? 'hold' : 'current'
+      } else if (index === activeEventIndex) {
+        state = isOnHold ? 'hold' : 'current'
       }
     }
 
@@ -79,8 +76,8 @@ function buildTimelineRows(events: TrackingEvent[], currentStatus?: string): Tim
   })
 }
 
-export const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ events, currentStatus }) => {
-  const rows = buildTimelineRows(events || [], currentStatus)
+export const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ events, activeEventIndex = -1, isOnHold = false }) => {
+  const rows = buildTimelineRows(events || [], activeEventIndex, isOnHold)
 
   return (
     <section className="logistics-card tracking-grid-overlay p-5 sm:p-6">
@@ -136,4 +133,3 @@ export const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ events, curr
     </section>
   )
 }
-
