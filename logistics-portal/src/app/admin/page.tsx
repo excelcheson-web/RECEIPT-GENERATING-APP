@@ -791,9 +791,17 @@ export default function AdminPage() {
       <div className="w-full max-w-6xl space-y-8">
         <div>
           <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <h2 className="admin-heading text-3xl sm:text-4xl font-bold tracking-tight">
-              Admin Dashboard
-            </h2>
+            <div className="flex items-center gap-4">
+              <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-lg shadow-[#9DC400]/20 shrink-0">
+                <Image src="/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png" alt="Skyship" fill sizes="48px" className="object-cover" priority />
+              </div>
+              <div>
+                <h2 className="admin-heading text-3xl sm:text-4xl font-bold tracking-tight">
+                  Admin Dashboard
+                </h2>
+                <p className="admin-subtitle text-sm">Skyship Logistics</p>
+              </div>
+            </div>
             <button
               type="button"
               onClick={handleLogout}
@@ -802,9 +810,6 @@ export default function AdminPage() {
               Logout
             </button>
           </div>
-          <p className="admin-subtitle mt-1 text-sm">
-            Create receipt or waybill
-          </p>
         </div>
 
         <div className="admin-main-card p-4 sm:p-6 lg:p-8">
@@ -1361,19 +1366,19 @@ export default function AdminPage() {
         {/* Generated List */}
         {generated.length > 0 && (
           <div>
-            <h3 className="text-xl font-semibold mb-4">Recently Generated:</h3>
-            <div className="grid gap-4">
+            <h3 className="admin-heading text-xl font-semibold mb-4">Recently Generated</h3>
+            <div className="grid gap-3">
               {generated.map((doc, i) => (
-                <div key={i} className="p-6 bg-white dark:bg-black/20 border rounded-xl">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="font-bold text-lg">{doc.companyName}</span>
-                    <span className="text-sm bg-blue-100 dark:bg-blue-900 px-3 py-1 rounded-full">
-                      {doc.trackingNumber}
-                    </span>
+                <div key={i} className="admin-main-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="font-semibold text-base admin-heading">{doc.companyName}</span>
+                    <p className="admin-subtitle text-xs mt-0.5">
+                      {doc.type} · {doc.origin || 'N/A'} → {doc.destination || 'N/A'}
+                    </p>
                   </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {doc.type} | Status: {doc.status} | Origin: {doc.origin || 'N/A'} -&gt; Destination: {doc.destination || 'N/A'}
-                  </div>
+                  <span className="text-xs font-mono px-3 py-1.5 rounded-lg border border-[#9DC400]/30 bg-[#9DC400]/10 text-[#9DC400] shrink-0">
+                    {doc.trackingNumber}
+                  </span>
                 </div>
               ))}
             </div>

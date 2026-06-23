@@ -2,364 +2,216 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { useTranslation } from '@/lib/i18n/useTranslation'
-import { LanguageSwitcher } from '@/components/LanguageSwitcher'
-
-// Icon components to replace emojis
-const DiamondIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-blue-400">
-    <path d="M6 3h12l4 6-10 13L2 9l4-6z"/>
-    <path d="M11 3L8 9l4 13 4-13-3-6z"/>
-    <path d="M2 9h20"/>
-  </svg>
-)
-
-const RocketIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-orange-400">
-    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-    <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-    <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
-    <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
-  </svg>
-)
-
-const LeafIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-green-400">
-    <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/>
-    <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
-  </svg>
-)
-
-const GlobeIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-cyan-400">
-    <circle cx="12" cy="12" r="10"/>
-    <line x1="2" y1="12" x2="22" y2="12"/>
-    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-  </svg>
-)
-
-const TargetIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-red-400">
-    <circle cx="12" cy="12" r="10"/>
-    <circle cx="12" cy="12" r="6"/>
-    <circle cx="12" cy="12" r="2"/>
-  </svg>
-)
-
-const BuildingIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-gray-400">
-    <path d="M6 22h12a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2z"/>
-    <path d="M14 2v5a2 2 0 0 0 2 2h5"/>
-    <path d="M10 9h4"/>
-    <path d="M10 13h4"/>
-    <path d="M10 17h4"/>
-  </svg>
-)
-
-const StarIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-yellow-400">
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-  </svg>
-)
-
-const LocationIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-orange-400">
-    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-    <circle cx="12" cy="10" r="3"/>
-  </svg>
-)
-
-const NetworkIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-blue-400">
-    <circle cx="12" cy="5" r="3"/>
-    <circle cx="19" cy="8" r="3"/>
-    <circle cx="5" cy="8" r="3"/>
-    <circle cx="12" cy="19" r="3"/>
-    <line x1="12" y1="8" x2="12" y2="16"/>
-    <line x1="9" y1="7" x2="6" y2="9"/>
-    <line x1="15" y1="7" x2="18" y2="9"/>
-    <line x1="9" y1="17" x2="7" y2="15"/>
-    <line x1="15" y1="17" x2="17" y2="15"/>
-  </svg>
-)
-
-const ZapIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-yellow-400">
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-  </svg>
-)
-
-const LockIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-green-400">
-    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-  </svg>
-)
-
-const MailIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-blue-400 inline mr-2">
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-    <polyline points="22,6 12,13 2,6"/>
-  </svg>
-)
-
-const PhoneIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-green-400 inline mr-2">
-    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-  </svg>
-)
-
-const MapPinIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-red-400 inline mr-2">
-    <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-    <circle cx="12" cy="10" r="3"/>
-  </svg>
-)
+import SiteNav from '@/components/SiteNav'
+import SiteFooter from '@/components/SiteFooter'
 
 const priorities = [
   {
     title: 'Customer Centricity',
-    description: "We don't just deliver packages; we deliver peace of mind.",
-    Icon: DiamondIcon
+    description: "We don't just deliver packages; we deliver peace of mind. Every client interaction is guided by empathy and precision.",
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
+        <path d="M6 3h12l4 6-10 13L2 9l4-6z"/><path d="M11 3L8 9l4 13 4-13-3-6z"/><path d="M2 9h20"/>
+      </svg>
+    ),
   },
   {
     title: 'Innovation',
-    description: 'We leverage the latest in AI and digital tracking to stay ahead of the curve.',
-    Icon: RocketIcon
+    description: 'We leverage the latest in AI, real-time data and digital tracking to stay ahead of the curve in global logistics.',
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
+        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+      </svg>
+    ),
   },
   {
     title: 'Sustainability',
-    description: 'We are constantly optimizing our routes to reduce our carbon footprint and build a greener future for global trade.',
-    Icon: LeafIcon
+    description: 'We constantly optimise our routes and operations to reduce our carbon footprint and build a greener future for global trade.',
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
+        <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/>
+      </svg>
+    ),
   },
   {
     title: 'Global Connectivity',
-    description: 'Bridging the gap between global markets and local doorsteps with transparent logistics.',
-    Icon: GlobeIcon
-  }
+    description: 'Bridging the gap between global markets and local doorsteps with transparent, end-to-end logistics you can track live.',
+    svg: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
+        <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+      </svg>
+    ),
+  },
+]
+
+const reasons = [
+  {
+    title: 'Precision Tracking',
+    desc: 'Our proprietary interface allows you to monitor shipments with minute-by-minute accuracy, anywhere on the globe.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+      </svg>
+    ),
+  },
+  {
+    title: 'Global Reach, Local Expertise',
+    desc: 'With a presence in key international hubs, we navigate customs and regional regulations so you don\'t have to.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+        <circle cx="12" cy="5" r="3"/><circle cx="19" cy="8" r="3"/><circle cx="5" cy="8" r="3"/><circle cx="12" cy="19" r="3"/>
+        <line x1="12" y1="8" x2="12" y2="16"/><line x1="9" y1="7" x2="6" y2="9"/><line x1="15" y1="7" x2="18" y2="9"/>
+      </svg>
+    ),
+  },
+  {
+    title: 'Adaptive Solutions',
+    desc: 'Whether it\'s a single parcel or massive industrial cargo, our logistics architecture scales to your exact needs.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      </svg>
+    ),
+  },
+  {
+    title: 'Security First',
+    desc: 'Your cargo is protected by industry-leading safety protocols and a dedicated team of logistics professionals.',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    ),
+  },
 ]
 
 export default function AboutPage() {
-  const { t } = useTranslation()
-
   return (
     <div className="mesh-gradient min-h-screen">
-      {/* Header & Navigation */}
-      <header className="glass-header px-4 sm:px-6 lg:px-8 py-4 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="relative w-10 h-10 rounded-xl overflow-hidden">
-              <Image
-                src="/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png"
-                alt="Skyship Logo"
-                fill
-                className="object-cover"
-                sizes="40px"
-                priority
-              />
-            </div>
-            <span className="text-xl font-bold text-white text-high-contrast hidden sm:block">
-              Skyship
-            </span>
-          </Link>
+      <SiteNav active="/about" />
 
-          <nav className="hidden md:flex items-center gap-8">
-            <Link href="/" className="text-white/80 hover:text-white transition font-medium">
-              {t.nav.home}
-            </Link>
-            <Link href="/about" className="text-white/80 hover:text-white transition font-medium">
-              {t.nav.about}
-            </Link>
-            <Link href="/#services" className="text-white/80 hover:text-white transition font-medium">
-              {t.nav.services}
-            </Link>
-            <Link href="/#track" className="text-white/80 hover:text-white transition font-medium">
-              {t.nav.track}
-            </Link>
-            <Link href="/contact" className="text-white/80 hover:text-white transition font-medium">
-              {t.nav.contact}
-            </Link>
-          </nav>
-
-          <div className="flex items-center gap-4">
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="relative py-20 sm:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white text-high-contrast mb-6 tracking-tight">
-              About Skyship
-            </h1>
-            <div className="w-24 h-1 bg-gradient-to-r from-orange-400 to-blue-500 mx-auto rounded-full"></div>
-          </div>
-
-          {/* Vision Section */}
-          <div className="glass-panel p-8 sm:p-12 mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-6 flex items-center gap-3">
-              <TargetIcon />
-              Our Vision: Transparent Global Connectivity
-            </h2>
-            <p className="text-white/80 text-lg leading-relaxed">
-              At Skyship, we believe that moving cargo should be as seamless as a clear sky.
-              In an increasingly complex world, we provide a glass-box approach to logistics where 
-              every movement is visible, every milestone is tracked, and every client is empowered with 
-              real-time data. We aren&apos;t just moving parcels; we are bridging the gap between global 
-              markets and local doorsteps.
-            </p>
-          </div>
-
-          {/* Who We Are Section */}
-          <div className="glass-panel p-8 sm:p-12 mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-6 flex items-center gap-3">
-              <BuildingIcon />
-              Who We Are
-            </h2>
-            <p className="text-white/80 text-lg leading-relaxed">
-              Founded on the principles of precision, speed, and integrity, Skyship has grown
-              into a premier international freight and supply chain partner. From the intricate requirements 
-              of Air and Ocean Freight to the ground-level reliability of Road Freight and Warehousing, 
-              our infrastructure is built to handle the world&apos;s most demanding cargo.
-            </p>
-          </div>
-
-          {/* Why Choose Skyship Section */}
-          <div className="glass-panel p-8 sm:p-12 mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-8 flex items-center gap-3">
-              <StarIcon />
-              Why Choose Skyship?
-            </h2>
-            <div className="grid sm:grid-cols-2 gap-6">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-400/30 to-blue-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <LocationIcon />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Precision Tracking</h3>
-                  <p className="text-white/70">Our proprietary interface allows you to monitor your shipments with minute-by-minute accuracy.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-400/30 to-blue-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <NetworkIcon />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Global Reach, Local Expertise</h3>
-                  <p className="text-white/70">With a presence in key international hubs, we navigate customs and regional regulations so you don&apos;t have to.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-400/30 to-blue-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <ZapIcon />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Adaptive Solutions</h3>
-                  <p className="text-white/70">Whether it&apos;s a single parcel or a massive industrial shipment, our logistics architecture scales to meet your specific needs.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-orange-400/30 to-blue-500/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <LockIcon />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-2">Security First</h3>
-                  <p className="text-white/70">Your cargo is protected by industry-leading safety protocols and a dedicated team of logistics professionals.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Prime Priorities Section */}
-          <div className="mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-8 flex items-center justify-center gap-3">
-              <TargetIcon />
-              Our Prime Priorities
-            </h2>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {priorities.map((priority, index) => (
-                <div 
-                  key={index}
-                  className="glass-card p-6 text-center group hover:scale-105 transition-all duration-300"
-                >
-                  <div className="mb-4 group-hover:scale-110 transition-transform flex justify-center">
-                    <priority.Icon />
-                  </div>
-                  <h3 className="text-lg font-semibold text-white mb-3">
-                    {priority.title}
-                  </h3>
-                  <p className="text-white/70 text-sm leading-relaxed">
-                    {priority.description}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Hero */}
+      <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+        <div className="max-w-4xl mx-auto text-center">
+          <p className="text-[#9DC400] text-sm font-semibold uppercase tracking-[0.25em] mb-4">Who We Are</p>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+            About <span className="text-[#9DC400]">Skyship</span>
+          </h1>
+          <div className="w-20 h-1 bg-gradient-to-r from-[#9DC400] to-[#7A9A00] mx-auto rounded-full mb-6" />
+          <p className="text-white/70 text-lg max-w-2xl mx-auto leading-relaxed">
+            At Skyship, we believe that moving cargo should be as seamless as a clear sky. We provide a glass-box approach to logistics where every movement is visible, every milestone is tracked, and every client is empowered with real-time data.
+          </p>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="glass-footer px-4 sm:px-6 lg:px-8 py-12">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="relative w-10 h-10 rounded-xl overflow-hidden">
-                  <Image
-                    src="/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png"
-                    alt="Skyship Logo"
-                    fill
-                    className="object-cover"
-                    sizes="40px"
-                  />
-                </div>
-                <span className="text-xl font-bold text-white">Skyship</span>
-              </div>
-              <p className="text-white/60 text-sm">
-                Transparent Global Connectivity for your cargo needs.
-              </p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 pb-8">
+
+        {/* Vision + Who We Are — side by side on desktop */}
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="glass-panel p-8 sm:p-10">
+            <div className="identity-icon mb-6">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
+                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+              </svg>
             </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-white/60 text-sm">
-                <li><Link href="/about" className="hover:text-white transition">About Us</Link></li>
-                <li><Link href="/#services" className="hover:text-white transition">Services</Link></li>
-                <li><Link href="/#track" className="hover:text-white transition">Track Parcel</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-white/60 text-sm">
-                <li><Link href="#" className="hover:text-white transition">Terms & Conditions</Link></li>
-                <li><Link href="#" className="hover:text-white transition">Privacy Policy</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Staff</h4>
-              <ul className="space-y-2 text-white/60 text-sm">
-                <li><Link href="/staff" className="hover:text-white transition">Staff Portal</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="text-white font-semibold mb-4">Contact</h4>
-              <ul className="space-y-2 text-white/60 text-sm">
-                <li className="flex items-center"><MailIcon /> contact@skyshiplogistics.com</li>
-                <li className="flex items-center"><PhoneIcon /> +447352998900</li>
-                <li className="flex items-center"><MapPinIcon /> GOLDEN CROSS HOUSE, 456-458 STRAND</li>
-              </ul>
-            </div>
+            <h2 className="text-2xl font-bold text-white mb-4">Our Vision</h2>
+            <p className="text-white/75 leading-relaxed">
+              Transparent Global Connectivity for every client. We aren&apos;t just moving parcels — we are bridging the gap between global markets and local doorsteps with data, trust, and speed.
+            </p>
           </div>
-          <div className="border-t border-white/10 pt-8 text-center">
-            <p className="text-white/50 text-sm">
-              Copyright 2026 Skyship Logistics. All rights reserved.
+
+          <div className="glass-panel p-8 sm:p-10">
+            <div className="identity-icon mb-6">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
+                <path d="M6 22h12a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2z"/><path d="M14 2v5a2 2 0 0 0 2 2h5"/>
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-4">Who We Are</h2>
+            <p className="text-white/75 leading-relaxed">
+              Founded on precision, speed, and integrity, Skyship has grown into a premier international freight partner. From Air and Ocean Freight to Road and Warehousing, we handle the world&apos;s most demanding cargo.
             </p>
           </div>
         </div>
-      </footer>
+
+        {/* Why Choose Skyship */}
+        <div className="glass-panel p-8 sm:p-12">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="identity-icon flex-shrink-0">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold text-white">Why Choose Skyship?</h2>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-6">
+            {reasons.map((r, i) => (
+              <div key={i} className="flex items-start gap-4 p-5 rounded-2xl bg-white/5 border border-white/10 hover:border-[#9DC400]/30 transition-colors">
+                <div className="w-12 h-12 rounded-xl bg-[#9DC400]/10 border border-[#9DC400]/25 flex items-center justify-center flex-shrink-0">
+                  {r.icon}
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-white mb-1">{r.title}</h3>
+                  <p className="text-white/65 text-sm leading-relaxed">{r.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Prime Priorities */}
+        <div>
+          <div className="text-center mb-8">
+            <p className="text-[#9DC400] text-sm font-semibold uppercase tracking-[0.25em] mb-2">What Drives Us</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white">Our Prime Priorities</h2>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {priorities.map((p, i) => (
+              <div key={i} className="company-identity-card flex flex-col items-center text-center group">
+                <div className="identity-icon mb-4 group-hover:scale-110 transition-transform">
+                  {p.svg}
+                </div>
+                <h3 className="identity-heading text-lg mb-2">{p.title}</h3>
+                <p className="identity-text text-sm">{p.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Stats strip */}
+        <div className="glass-panel p-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
+            {[
+              { value: '200+', label: 'Countries Served' },
+              { value: '99.7%', label: 'On-Time Rate' },
+              { value: '24/7', label: 'Live Support' },
+              { value: '10M+', label: 'Shipments Delivered' },
+            ].map((stat, i) => (
+              <div key={i}>
+                <p className="text-3xl sm:text-4xl font-bold text-[#9DC400]">{stat.value}</p>
+                <p className="text-white/60 text-sm mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="hero-glass p-10 text-center">
+          <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Ready to Ship with Confidence?</h2>
+          <p className="text-white/70 mb-6 max-w-xl mx-auto">Contact our team today and get a tailored logistics solution for your business.</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/contact" className="skyship-button px-8 py-3 inline-block font-bold">Get a Quote</Link>
+            <Link href="/track" className="glass-button px-8 py-3 inline-block">Track a Shipment</Link>
+          </div>
+        </div>
+
+        {/* Logo strip */}
+        <div className="flex justify-center pb-4">
+          <div className="relative w-24 h-24 rounded-2xl overflow-hidden shadow-xl shadow-[#9DC400]/20 border border-[#9DC400]/20">
+            <Image src="/Gemini_Generated_Image_fdrkvsfdrkvsfdrk.png" alt="Skyship Logo" fill sizes="96px" className="object-cover" />
+          </div>
+        </div>
+      </div>
+
+      <SiteFooter />
     </div>
   )
 }
-
-

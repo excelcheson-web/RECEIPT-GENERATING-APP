@@ -2,143 +2,99 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import SiteNav from '@/components/SiteNav'
+import SiteFooter from '@/components/SiteFooter'
 
-// Service data with detailed descriptions
 const services = [
   {
     id: 'air',
     title: 'Air Freight',
     shortDesc: 'Speed Without Compromise',
-    description: 'When time is your most valuable asset, Skyship Logistics\'s Air Freight solutions deliver. We leverage a global network of premium air carriers to ensure your high-priority cargo reaches any destination worldwide in record time. From express documents to heavy industrial machinery, we handle the complexity of customs and clearance so you don\'t have to.',
-    features: [
-      'Express delivery to 200+ countries',
-      'Real-time flight tracking',
-      'Temperature-controlled cargo options',
-      'Priority handling for urgent shipments',
-      'Customs clearance assistance'
-    ],
+    description: 'When time is your most valuable asset, Skyship Logistics\'s Air Freight solutions deliver. We leverage a global network of premium air carriers to ensure your high-priority cargo reaches any destination worldwide in record time.',
+    features: ['Express delivery to 200+ countries', 'Real-time flight tracking', 'Temperature-controlled cargo options', 'Priority handling for urgent shipments', 'Customs clearance assistance'],
     image: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=800&q=80',
-    iconImage: 'https://images.unsplash.com/photo-1556388158-158ea5ccacbd?w=200&q=80',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
+        <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 4c-1 0-2 .5-3.5 2L12 9l-6.8-1.8c-.5-.1-1 .1-1.3.5-.3.4-.2 1 .1 1.3l2.9 2.9L5 14H2l-1 3 3-1v-2l3.2.9 2.9 2.9c.3.3.9.4 1.3.1.4-.3.6-.8.5-1.3z"/>
+      </svg>
+    ),
+    color: 'from-sky-500/20 to-blue-600/20',
+    border: 'border-sky-400/30',
   },
   {
     id: 'ocean',
     title: 'Ocean Freight',
     shortDesc: 'Global Reach, Scalable Solutions',
-    description: 'For large-scale international trade, our Ocean Freight service offers the perfect balance of cost-efficiency and reliability. Whether you require Full Container Load (FCL) or Less than Container Load (LCL), Skyship Logistics provides secure transit across all major sea lanes, backed by our real-time maritime tracking interface.',
-    features: [
-      'FCL and LCL shipping options',
-      'Container tracking across all major ports',
-      'Competitive rates for bulk cargo',
-      'Hazardous materials handling',
-      'Port-to-port and door-to-door service'
-    ],
+    description: 'For large-scale international trade, our Ocean Freight service offers the perfect balance of cost-efficiency and reliability. Whether FCL or LCL, Skyship provides secure transit across all major sea lanes with real-time maritime tracking.',
+    features: ['FCL and LCL shipping options', 'Container tracking across all major ports', 'Competitive rates for bulk cargo', 'Hazardous materials handling', 'Port-to-port and door-to-door service'],
     image: 'https://images.unsplash.com/photo-1494412574643-ff11b0a5c1c3?w=800&q=80',
-    iconImage: 'https://images.unsplash.com/photo-1605745341112-85968b19335b?w=200&q=80',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>
+      </svg>
+    ),
+    color: 'from-cyan-500/20 to-teal-600/20',
+    border: 'border-cyan-400/30',
   },
   {
     id: 'warehouse',
     title: 'Warehousing',
     shortDesc: 'Smart Storage & Inventory Control',
-    description: 'Our state-of-the-art warehousing facilities are more than just storage; they are strategic hubs for your supply chain. Featuring climate-controlled environments and advanced Inventory Management Systems (IMS), we ensure your goods are sorted, protected, and ready for rapid distribution the moment they are needed.',
-    features: [
-      'Climate-controlled storage facilities',
-      '24/7 security monitoring',
-      'Advanced inventory management systems',
-      'Pick and pack services',
-      'Cross-docking capabilities'
-    ],
+    description: 'Our state-of-the-art warehousing facilities are strategic hubs for your supply chain. Featuring climate-controlled environments and advanced Inventory Management Systems, we ensure your goods are protected and ready for rapid distribution.',
+    features: ['Climate-controlled storage facilities', '24/7 security monitoring', 'Advanced inventory management systems', 'Pick and pack services', 'Cross-docking capabilities'],
     image: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&q=80',
-    iconImage: 'https://images.unsplash.com/photo-1580674285054-bed31e145f59?w=200&q=80',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+    ),
+    color: 'from-violet-500/20 to-purple-600/20',
+    border: 'border-violet-400/30',
   },
   {
     id: 'road',
     title: 'Road Freight',
     shortDesc: 'Last-Mile Precision',
-    description: 'The final link in the chain is often the most critical. Our Road Freight network spans continents, providing door-to-door delivery with a fleet of modern, GPS-tracked vehicles. From regional distribution to cross-border trucking, we ensure your parcel navigates the "last mile" with total transparency and safety.',
-    features: [
-      'Door-to-door delivery service',
-      'GPS-tracked fleet',
-      'Express and standard delivery options',
-      'Cross-border trucking expertise',
-      'Real-time delivery notifications'
-    ],
+    description: 'The final link in the chain is often the most critical. Our Road Freight network provides door-to-door delivery with a fleet of modern, GPS-tracked vehicles, ensuring total transparency and safety on every last-mile route.',
+    features: ['Door-to-door delivery service', 'GPS-tracked fleet', 'Express and standard delivery options', 'Cross-border trucking expertise', 'Real-time delivery notifications'],
     image: 'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?w=800&q=80',
-    iconImage: 'https://images.unsplash.com/photo-1519003722824-194d4455a60c?w=200&q=80',
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-7 h-7">
+        <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+      </svg>
+    ),
+    color: 'from-lime-500/20 to-green-600/20',
+    border: 'border-lime-400/30',
   },
-]
-
-// Language options
-const languages = [
-  { code: 'EN', name: 'English' },
-  { code: 'ES', name: 'Español' },
-  { code: 'FR', name: 'Français' },
-  { code: 'DE', name: 'Deutsch' },
-  { code: 'CN', name: '中文' },
-  { code: 'AR', name: 'العربية' },
 ]
 
 export default function ServicesPage() {
   return (
     <div className="mesh-gradient min-h-screen">
-      {/* Header & Navigation */}
-      <header className="glass-header fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto flex items-center justify-between h-16 sm:h-20">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="skyship-logo rounded-xl flex items-center justify-center text-[#001f3f] font-bold">
-              S
-            </div>
-            <span className="text-xl sm:text-2xl font-bold text-white text-high-contrast">
-              Skyship Logistics
-            </span>
-          </div>
+      <SiteNav active="/services" />
 
-          {/* Navigation Links - Desktop */}
-          <nav className="hidden md:flex items-center gap-2">
-            <Link href="/" className="nav-link text-sm">Home</Link>
-            <Link href="/about" className="nav-link text-sm">About Us</Link>
-            <Link href="/services" className="nav-link text-sm bg-white/20">Services</Link>
-            <Link href="/track" className="nav-link text-sm">Track Parcel</Link>
-            <Link href="/contact" className="nav-link text-sm">Contact</Link>
-          </nav>
-
-          {/* Language Switcher */}
-          <div className="flex items-center gap-3">
-            <select className="language-switcher">
-              {languages.map((lang) => (
-                <option key={lang.code} value={lang.code} className="text-gray-900">
-                  {lang.code}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="relative pt-24 sm:pt-32 pb-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white text-high-contrast mb-6">
-            Our Services
+      {/* Hero */}
+      <section className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto text-center">
+          <p className="text-[#9DC400] text-sm font-semibold uppercase tracking-[0.25em] mb-4">What We Offer</p>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+            Our <span className="text-[#9DC400]">Services</span>
           </h1>
-          <p className="text-lg sm:text-xl text-white/80 max-w-3xl mx-auto">
-            Comprehensive logistics solutions tailored to your business needs. 
-            From air freight to last-mile delivery, we have you covered.
+          <div className="w-20 h-1 bg-linear-to-r from-[#9DC400] to-[#7A9A00] mx-auto rounded-full mb-6" />
+          <p className="text-white/70 text-lg max-w-2xl mx-auto leading-relaxed">
+            Comprehensive logistics solutions tailored to your business needs — from express air freight to last-mile delivery.
           </p>
         </div>
       </section>
 
-      {/* Services List */}
-      <section className="py-12 sm:py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto space-y-16">
+      {/* Services */}
+      <section className="px-4 sm:px-6 lg:px-8 pb-8">
+        <div className="max-w-7xl mx-auto space-y-10">
           {services.map((service, index) => (
-            <div 
-              key={service.id}
-              className={`glass-card overflow-hidden ${index % 2 === 0 ? '' : 'md:flex-row-reverse'}`}
-            >
-              <div className="grid md:grid-cols-2 gap-0">
+            <div key={service.id} className="glass-card overflow-hidden">
+              <div className={`grid md:grid-cols-2 gap-0 ${index % 2 !== 0 ? 'md:[&>*:first-child]:order-2' : ''}`}>
                 {/* Image */}
-                <div className="relative h-64 md:h-auto min-h-[300px]">
+                <div className="relative h-64 md:h-auto min-h-[320px]">
                   <Image
                     src={service.image}
                     alt={service.title}
@@ -146,46 +102,37 @@ export default function ServicesPage() {
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 50vw"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent md:bg-gradient-to-r md:from-black/60 md:to-transparent" />
-                  <div className="absolute bottom-6 left-6">
-                    <div className="relative w-16 h-16 mb-3 rounded-xl overflow-hidden border-2 border-[#C8FF00]">
-                      <Image
-                        src={service.iconImage}
-                        alt={service.title}
-                        fill
-                        className="object-cover"
-                        sizes="64px"
-                      />
+                  <div className="absolute inset-0 bg-linear-to-r from-black/70 via-black/30 to-transparent" />
+                  <div className="absolute bottom-6 left-6 right-6">
+                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r ${service.color} border ${service.border} backdrop-blur-sm mb-3`}>
+                      <span className="text-white">{service.icon}</span>
+                      <span className="text-white text-xs font-semibold uppercase tracking-wider">{service.shortDesc}</span>
                     </div>
                     <h2 className="text-3xl font-bold text-white">{service.title}</h2>
-                    <p className="text-[#C8FF00] font-semibold">{service.shortDesc}</p>
                   </div>
                 </div>
-                
+
                 {/* Content */}
-                <div className="p-8 md:p-12 flex flex-col justify-center">
-                  <p className="text-white/90 text-lg leading-relaxed mb-8">
-                    {service.description}
-                  </p>
-                  
-                  <h3 className="text-[#C8FF00] font-semibold mb-4">Key Features:</h3>
-                  <ul className="space-y-3">
-                    {service.features.map((feature, featureIndex) => (
-                      <li key={featureIndex} className="flex items-start gap-3 text-white/80">
-                        <span className="text-[#C8FF00] text-xl">✓</span>
-                        <span>{feature}</span>
+                <div className="p-8 md:p-12 flex flex-col justify-center bg-white/5">
+                  <p className="text-white/85 text-base leading-relaxed mb-8">{service.description}</p>
+
+                  <p className="text-[#9DC400] text-xs font-semibold uppercase tracking-widest mb-4">Key Features</p>
+                  <ul className="space-y-3 mb-8">
+                    {service.features.map((feature, fi) => (
+                      <li key={fi} className="flex items-start gap-3 text-white/75 text-sm">
+                        <span className="mt-0.5 w-5 h-5 rounded-full bg-[#9DC400]/15 border border-[#9DC400]/40 flex items-center justify-center shrink-0">
+                          <svg className="w-3 h-3 text-[#9DC400]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </span>
+                        {feature}
                       </li>
                     ))}
                   </ul>
-                  
-                  <div className="mt-8">
-                    <Link 
-                      href="/contact"
-                      className="skyship-button px-8 py-3 inline-block text-center"
-                    >
-                      Get a Quote
-                    </Link>
-                  </div>
+
+                  <Link href="/contact" className="skyship-button px-8 py-3 inline-block text-center self-start font-bold">
+                    Get a Quote
+                  </Link>
                 </div>
               </div>
             </div>
@@ -193,99 +140,24 @@ export default function ServicesPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
+      {/* CTA */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          <div className="hero-glass p-8 sm:p-12 text-center">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white text-high-contrast mb-4">
-              Need a Custom Solution?
-            </h2>
+          <div className="hero-glass p-10 sm:p-14 text-center">
+            <p className="text-[#9DC400] text-sm font-semibold uppercase tracking-widest mb-3">Tailored Logistics</p>
+            <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">Need a Custom Solution?</h2>
             <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto">
-              Our logistics experts can design a tailored solution for your unique business requirements.
+              Our logistics experts can design a fully tailored solution for your unique business requirements.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/contact"
-                className="skyship-button px-8 py-4 text-lg font-semibold inline-block"
-              >
-                Contact Our Team
-              </Link>
-              <Link
-                href="/"
-                className="glass-button px-8 py-4 text-lg font-semibold inline-block"
-              >
-                Back to Home
-              </Link>
+              <Link href="/contact" className="skyship-button px-8 py-4 text-lg font-bold inline-block">Contact Our Team</Link>
+              <Link href="/" className="glass-button px-8 py-4 text-lg font-semibold inline-block">Back to Home</Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="glass-footer py-12 px-4 sm:px-6 lg:px-8 mt-16">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
-            {/* Company Info */}
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="skyship-logo rounded-xl flex items-center justify-center text-[#001f3f] font-bold">
-                  S
-                </div>
-                <span className="text-xl font-bold text-white">Skyship Logistics</span>
-              </div>
-              <p className="text-white/60 text-sm leading-relaxed">
-                Your trusted partner for global logistics and supply chain solutions.
-              </p>
-            </div>
-
-            {/* Quick Links */}
-            <div>
-              <h4 className="text-white font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2">
-                <li><Link href="/" className="skyship-footer-link text-sm">Home</Link></li>
-                <li><Link href="/about" className="skyship-footer-link text-sm">About Us</Link></li>
-                <li><Link href="/services" className="skyship-footer-link text-sm">Services</Link></li>
-                <li><Link href="/track" className="skyship-footer-link text-sm">Track Parcel</Link></li>
-              </ul>
-            </div>
-
-            {/* Support */}
-            <div>
-              <h4 className="text-white font-semibold mb-4">Support</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="skyship-footer-link text-sm">Help Center</a></li>
-                <li><Link href="/contact" className="skyship-footer-link text-sm">Contact Us</Link></li>
-                <li><a href="#" className="skyship-footer-link text-sm">FAQs</a></li>
-                <li><a href="#" className="skyship-footer-link text-sm">Live Chat</a></li>
-              </ul>
-            </div>
-
-            {/* Legal */}
-            <div>
-              <h4 className="text-white font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2">
-                <li><a href="#" className="skyship-footer-link text-sm">Terms & Conditions</a></li>
-                <li><a href="#" className="skyship-footer-link text-sm">Privacy Policy</a></li>
-                <li><a href="#" className="skyship-footer-link text-sm">Cookie Policy</a></li>
-                <li><Link href="/staff" className="skyship-footer-link text-sm">Staff Portal</Link></li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Bottom Bar */}
-          <div className="border-t border-white/10 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <p className="text-white/50 text-sm">
-              © 2026 Skyship Logistics. All rights reserved.
-            </p>
-            <div className="flex gap-4">
-              <span className="text-white/50 text-sm">Follow us:</span>
-              <a href="#" className="text-[#C8FF00] hover:text-white transition">Twitter</a>
-              <a href="#" className="text-[#C8FF00] hover:text-white transition">LinkedIn</a>
-              <a href="#" className="text-[#C8FF00] hover:text-white transition">Instagram</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   )
 }

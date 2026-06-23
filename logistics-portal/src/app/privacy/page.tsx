@@ -1,105 +1,129 @@
+import Link from 'next/link'
+import SiteNav from '@/components/SiteNav'
+import SiteFooter from '@/components/SiteFooter'
+
+const sections = [
+  {
+    num: '01',
+    title: 'Information We Collect',
+    intro: 'Skyship Logistics collects information necessary to provide our logistics services:',
+    list: [
+      'Contact information (name, email, phone, address)',
+      'Shipment details and tracking numbers',
+      'Payment and billing information',
+      'Business information for corporate accounts',
+      'Usage data and analytics',
+    ],
+  },
+  {
+    num: '02',
+    title: 'How We Use Your Information',
+    intro: 'We use your information to:',
+    list: [
+      'Process and track your shipments',
+      'Communicate shipping updates and notifications',
+      'Provide customer support',
+      'Improve our services and user experience',
+      'Comply with legal and regulatory requirements',
+    ],
+  },
+  {
+    num: '03',
+    title: 'Data Security',
+    content: 'We implement industry-standard security measures including encryption, secure servers, and access controls. Your tracking information is protected and only accessible to authorised personnel and yourself.',
+  },
+  {
+    num: '04',
+    title: 'Data Sharing',
+    intro: 'We only share your information with:',
+    list: [
+      'Shipping carriers and logistics partners (necessary for delivery)',
+      'Service providers who assist our operations',
+      'Legal authorities when required by law',
+    ],
+    footer: 'We do not sell your personal information to third parties.',
+  },
+  {
+    num: '05',
+    title: 'Cookies and Tracking',
+    content: 'We use cookies and similar technologies to enhance your experience, remember your preferences, and analyse website traffic. You can control cookie settings through your browser or via our Cookie Policy page.',
+  },
+  {
+    num: '06',
+    title: 'Your Rights',
+    intro: 'You have the right to:',
+    list: [
+      'Access your personal information',
+      'Request correction of inaccurate data',
+      'Request deletion of your data',
+      'Opt-out of marketing communications',
+      'Export your data in a portable format',
+    ],
+  },
+  {
+    num: '07',
+    title: 'Contact Our DPO',
+    content: 'For privacy-related questions or requests, contact our Data Protection Officer at privacy@skyshiplogistics.com, by phone at +447352998900, or by post to: GOLDEN CROSS HOUSE, 456-458 STRAND, London.',
+  },
+]
+
 export default function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#001f3f] to-[#003366] py-20 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="glass-panel p-8 md:p-12">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-8">Privacy Policy</h1>
-          
-          <div className="space-y-6 text-white/80">
-            <section>
-              <h2 className="text-xl font-semibold text-[#9DC400] mb-4">1. Information We Collect</h2>
-              <p className="leading-relaxed mb-4">
-                Skyship Logistics collects information necessary to provide our logistics services:
-              </p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Contact information (name, email, phone, address)</li>
-                <li>Shipment details and tracking numbers</li>
-                <li>Payment and billing information</li>
-                <li>Business information for corporate accounts</li>
-                <li>Usage data and analytics</li>
-              </ul>
-            </section>
+    <div className="mesh-gradient min-h-screen">
+      <SiteNav />
 
-            <section>
-              <h2 className="text-xl font-semibold text-[#9DC400] mb-4">2. How We Use Your Information</h2>
-              <p className="leading-relaxed mb-4">
-                We use your information to:
-              </p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Process and track your shipments</li>
-                <li>Communicate shipping updates and notifications</li>
-                <li>Provide customer support</li>
-                <li>Improve our services and user experience</li>
-                <li>Comply with legal and regulatory requirements</li>
-              </ul>
-            </section>
+      {/* Hero */}
+      <section className="pt-32 pb-10 px-4 sm:px-6 lg:px-8 text-center">
+        <p className="text-[#9DC400] text-sm font-semibold uppercase tracking-[0.25em] mb-4">Legal</p>
+        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
+          Privacy <span className="text-[#9DC400]">Policy</span>
+        </h1>
+        <div className="w-20 h-1 bg-[#9DC400] mx-auto rounded-full mb-4" />
+        <p className="text-white/55 text-sm">Last updated: January 2026</p>
+      </section>
 
-            <section>
-              <h2 className="text-xl font-semibold text-[#9DC400] mb-4">3. Data Security</h2>
-              <p className="leading-relaxed">
-                We implement industry-standard security measures to protect your data including 
-                encryption, secure servers, and access controls. Your tracking information 
-                is protected and only accessible to authorized personnel and you.
-              </p>
-            </section>
+      {/* Document body */}
+      <section className="px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="max-w-4xl mx-auto">
+          <div className="glass-panel p-8 sm:p-12">
+            <div className="space-y-10">
+              {sections.map((s) => (
+                <div key={s.num} className="flex gap-5 sm:gap-8">
+                  <div className="text-2xl font-bold text-[#9DC400]/40 shrink-0 w-10 pt-0.5 font-mono">
+                    {s.num}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-lg font-semibold text-white mb-3">{s.title}</h2>
+                    {s.intro && <p className="text-white/70 text-sm mb-3">{s.intro}</p>}
+                    {s.content && <p className="text-white/70 leading-relaxed text-sm">{s.content}</p>}
+                    {s.list && (
+                      <ul className="space-y-2">
+                        {s.list.map((item, i) => (
+                          <li key={i} className="flex items-start gap-3 text-white/70 text-sm">
+                            <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-[#9DC400] shrink-0" />
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {s.footer && <p className="text-white/70 text-sm mt-4">{s.footer}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
 
-            <section>
-              <h2 className="text-xl font-semibold text-[#9DC400] mb-4">4. Data Sharing</h2>
-              <p className="leading-relaxed">
-                We only share your information with:
-              </p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Shipping carriers and logistics partners (necessary for delivery)</li>
-                <li>Service providers who assist our operations</li>
-                <li>Legal authorities when required by law</li>
-              </ul>
-              <p className="leading-relaxed mt-4">
-                We do not sell your personal information to third parties.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-[#9DC400] mb-4">5. Cookies and Tracking</h2>
-              <p className="leading-relaxed">
-                We use cookies and similar technologies to enhance your experience, remember 
-                your preferences, and analyze website traffic. You can control cookie settings 
-                through your browser preferences.
-              </p>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-[#9DC400] mb-4">6. Your Rights</h2>
-              <p className="leading-relaxed mb-4">
-                You have the right to:
-              </p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Access your personal information</li>
-                <li>Request correction of inaccurate data</li>
-                <li>Request deletion of your data</li>
-                <li>Opt-out of marketing communications</li>
-                <li>Export your data</li>
-              </ul>
-            </section>
-
-            <section>
-              <h2 className="text-xl font-semibold text-[#9DC400] mb-4">7. Contact Us</h2>
-              <p className="leading-relaxed">
-                For privacy-related questions or requests, contact our Data Protection Officer:
-                <br />
-                Email: privacy@skydexlogistics.com
-                <br />
-                Phone: +447352998900
-                <br />
-                Address: GOLDEN CROSS HOUSE, 456-458 STRAND
-              </p>
-            </section>
-
-            <p className="text-sm text-white/60 mt-8">
-              Last updated: January 2026
-            </p>
+            <div className="border-t border-white/10 mt-12 pt-8 flex flex-col sm:flex-row justify-between gap-4">
+              <p className="text-white/40 text-xs">© 2026 Skyship Logistics. All rights reserved.</p>
+              <div className="flex gap-4 text-xs">
+                <Link href="/terms" className="text-white/50 hover:text-[#9DC400] transition">Terms &amp; Conditions</Link>
+                <Link href="/cookies" className="text-white/50 hover:text-[#9DC400] transition">Cookie Policy</Link>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      <SiteFooter />
     </div>
   )
 }
