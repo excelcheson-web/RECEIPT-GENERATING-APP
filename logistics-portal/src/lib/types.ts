@@ -392,6 +392,7 @@ export interface TrackingEventRecord {
   description: string;
   eventTime: string;
   isHold?: boolean;
+  holdCondition?: string; // named hold reason e.g. "Customs Clearance", "Weather Delay"
 }
 
 // Firestore waybill document shape (supports both old and new fields)

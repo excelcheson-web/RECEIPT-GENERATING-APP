@@ -37,13 +37,14 @@ const MODE_TERMINAL_LABEL: Record<'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR', strin
 }
 
 type TransportMode = 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR'
+type CountryOption = typeof COUNTRIES[number]
 
-function getSeaPortCode(country: typeof COUNTRIES[number]): string {
+function getSeaPortCode(country: CountryOption): string {
   const cityLetters = country.city.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3).padEnd(3, 'X')
   return `${country.code}${cityLetters}`
 }
 
-function getModeLocationCode(country: typeof COUNTRIES[number], mode: TransportMode): string {
+function getModeLocationCode(country: CountryOption, mode: TransportMode): string {
   switch (mode) {
     case 'AIR':
       return country.airport
@@ -58,8 +59,49 @@ function getModeLocationCode(country: typeof COUNTRIES[number], mode: TransportM
   }
 }
 
-function getModeLocation(country: typeof COUNTRIES[number], mode: TransportMode): string {
+function getModeLocation(country: CountryOption, mode: TransportMode): string {
   return `${country.city}/${getModeLocationCode(country, mode)}`
+}
+
+function normalizeLocationInput(value: string | undefined, fallback: string): string {
+  const trimmed = value?.trim()
+  return trimmed || fallback
+}
+
+function getCustomLocationCode(location: string, fallbackCountry: CountryOption, mode: TransportMode): string {
+  const trimmed = location.trim()
+  if (!trimmed) return getModeLocationCode(fallbackCountry, mode)
+
+  const explicitCode = trimmed.match(/\/\s*([A-Za-z0-9-]{2,10})\s*$/)?.[1]
+  if (explicitCode) {
+    return explicitCode.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 10) || getModeLocationCode(fallbackCountry, mode)
+  }
+
+  const compact = trimmed.toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const baseCode = compact.slice(0, 3).padEnd(3, 'X')
+
+  if (mode === 'SEA') return `ZZ${baseCode}`
+  if (mode === 'LAND') return `${baseCode}-LND`
+  if (mode === 'DOOR_TO_DOOR') return `${baseCode}-DTD`
+  return baseCode
+}
+
+function getRoutePreviewParts(location: string, fallbackCountry: CountryOption, mode: TransportMode) {
+  const trimmed = location.trim()
+  const presetLocation = getModeLocation(fallbackCountry, mode)
+
+  if (!trimmed || trimmed === presetLocation) {
+    return {
+      primary: fallbackCountry.city,
+      secondary: fallbackCountry.name,
+    }
+  }
+
+  const [primary, ...codeParts] = trimmed.split('/')
+  return {
+    primary: primary.trim() || trimmed,
+    secondary: codeParts.join('/').trim() || 'Custom city/country',
+  }
 }
 
 // SVG Icons
@@ -129,8 +171,10 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
   const [transportMode, setTransportMode] = useState<TransportMode>('AIR')
   
   // Country selections
-  const [departureCountry, setDepartureCountry] = useState<typeof COUNTRIES[number]>(COUNTRIES[0])
-  const [destinationCountry, setDestinationCountry] = useState<typeof COUNTRIES[number]>(COUNTRIES[4])
+  const [departureCountry, setDepartureCountry] = useState<CountryOption>(COUNTRIES[0])
+  const [destinationCountry, setDestinationCountry] = useState<CountryOption>(COUNTRIES[4])
+  const [departureLocationInput, setDepartureLocationInput] = useState(() => getModeLocation(COUNTRIES[0], 'AIR'))
+  const [destinationLocationInput, setDestinationLocationInput] = useState(() => getModeLocation(COUNTRIES[4], 'AIR'))
   
   // Smart defaults hook - pass country info for dynamic departure/destination
   const {
@@ -156,14 +200,18 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
   }, [transportMode])
   const terminalLabel = MODE_TERMINAL_LABEL[transportMode]
   const routeSymbol = transportMode === 'SEA' ? 'SHIP' : transportMode === 'LAND' ? 'TRUCK' : transportMode === 'DOOR_TO_DOOR' ? 'DOOR' : 'AIR'
+  const departureRouteLocation = normalizeLocationInput(departureLocationInput, getModeLocation(departureCountry, transportMode))
+  const destinationRouteLocation = normalizeLocationInput(destinationLocationInput, getModeLocation(destinationCountry, transportMode))
+  const departureRoutePreview = getRoutePreviewParts(departureRouteLocation, departureCountry, transportMode)
+  const destinationRoutePreview = getRoutePreviewParts(destinationRouteLocation, destinationCountry, transportMode)
 
   const autoRouteNumber = useMemo(() => {
     const modeCode = ROUTE_MODE_CODE[transportMode]
-    const departureCode = getModeLocationCode(departureCountry, transportMode) || 'DEP'
-    const destinationCode = getModeLocationCode(destinationCountry, transportMode) || 'DST'
+    const departureCode = getCustomLocationCode(departureRouteLocation, departureCountry, transportMode) || 'DEP'
+    const destinationCode = getCustomLocationCode(destinationRouteLocation, destinationCountry, transportMode) || 'DST'
     const waybillSuffix = (smartDefaults.waybillNumber || 'AUTO').replace(/[^A-Z0-9]/gi, '').slice(-4).toUpperCase() || 'AUTO'
     return `RT-${modeCode}-${departureCode}-${destinationCode}-${waybillSuffix}`
-  }, [departureCountry, destinationCountry, smartDefaults.waybillNumber, transportMode])
+  }, [departureCountry, departureRouteLocation, destinationCountry, destinationRouteLocation, smartDefaults.waybillNumber, transportMode])
 
   // Local state for UI
   const [isGenerating, setIsGenerating] = useState(false)
@@ -176,8 +224,8 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       shipmentMode: transportMode,
       serviceType: 'Standard',
       deliveryType: 'DOOR_TO_DOOR',
-      origin: getModeLocation(departureCountry, transportMode),
-      destination: getModeLocation(destinationCountry, transportMode),
+      origin: departureRouteLocation,
+      destination: destinationRouteLocation,
       departureDate: smartDefaults.dateOfIssue,
       estimatedDeliveryDate: smartDefaults.estimatedArrivalDate,
     })
@@ -188,15 +236,15 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       shipmentMode: overrides.shipmentMode || transportMode,
       serviceType: overrides.serviceType || serviceType,
       deliveryType: overrides.deliveryType || deliveryType,
-      origin: overrides.origin || userInput.portOfDeparture || getModeLocation(departureCountry, transportMode),
-      destination: overrides.destination || userInput.portOfDestination || getModeLocation(destinationCountry, transportMode),
+      origin: overrides.origin || normalizeLocationInput(userInput.portOfDeparture, departureRouteLocation),
+      destination: overrides.destination || normalizeLocationInput(userInput.portOfDestination, destinationRouteLocation),
       departureDate: overrides.departureDate || smartDefaults.dateOfIssue,
       estimatedDeliveryDate: overrides.estimatedDeliveryDate || smartDefaults.estimatedArrivalDate,
     }),
     [
       deliveryType,
-      departureCountry,
-      destinationCountry,
+      departureRouteLocation,
+      destinationRouteLocation,
       serviceType,
       smartDefaults.dateOfIssue,
       smartDefaults.estimatedArrivalDate,
@@ -220,10 +268,21 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
 
   // Handle transport mode change
   const handleTransportModeChange = (mode: TransportMode) => {
+    const previousDeparturePreset = getModeLocation(departureCountry, transportMode)
+    const previousDestinationPreset = getModeLocation(destinationCountry, transportMode)
+    const keepsDeparturePreset = !departureLocationInput.trim() || departureLocationInput.trim() === previousDeparturePreset
+    const keepsDestinationPreset = !destinationLocationInput.trim() || destinationLocationInput.trim() === previousDestinationPreset
+    const nextOrigin = keepsDeparturePreset
+      ? getModeLocation(departureCountry, mode)
+      : normalizeLocationInput(departureLocationInput, previousDeparturePreset)
+    const nextDestination = keepsDestinationPreset
+      ? getModeLocation(destinationCountry, mode)
+      : normalizeLocationInput(destinationLocationInput, previousDestinationPreset)
+
     setTransportMode(mode)
     updateTransportMode(mode)
-    const nextOrigin = getModeLocation(departureCountry, mode)
-    const nextDestination = getModeLocation(destinationCountry, mode)
+    setDepartureLocationInput(nextOrigin)
+    setDestinationLocationInput(nextDestination)
     updateUserInput('portOfDeparture', nextOrigin)
     updateUserInput('portOfDestination', nextDestination)
 
@@ -240,6 +299,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
     if (country) {
       const nextOrigin = getModeLocation(country, transportMode)
       setDepartureCountry(country)
+      setDepartureLocationInput(nextOrigin)
       // Update the smart defaults with new departure info
       updateUserInput('portOfDeparture', nextOrigin)
       regenerateProjectedTimeline({ origin: nextOrigin })
@@ -251,10 +311,25 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
     if (country) {
       const nextDestination = getModeLocation(country, transportMode)
       setDestinationCountry(country)
+      setDestinationLocationInput(nextDestination)
       // Update the smart defaults with new destination info
       updateUserInput('portOfDestination', nextDestination)
       regenerateProjectedTimeline({ destination: nextDestination })
     }
+  }
+
+  const handleDepartureLocationInput = (value: string) => {
+    const nextOrigin = normalizeLocationInput(value, getModeLocation(departureCountry, transportMode))
+    setDepartureLocationInput(value)
+    updateUserInput('portOfDeparture', nextOrigin)
+    regenerateProjectedTimeline({ origin: nextOrigin })
+  }
+
+  const handleDestinationLocationInput = (value: string) => {
+    const nextDestination = normalizeLocationInput(value, getModeLocation(destinationCountry, transportMode))
+    setDestinationLocationInput(value)
+    updateUserInput('portOfDestination', nextDestination)
+    regenerateProjectedTimeline({ destination: nextDestination })
   }
 
   const handleServiceTypeChange = (value: (typeof SERVICE_TYPE_OPTIONS)[number]) => {
@@ -276,10 +351,12 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
 
     setIsGenerating(true)
     try {
+      const departureForWaybill = normalizeLocationInput(completeFormData.portOfDeparture as string | undefined, departureRouteLocation)
+      const destinationForWaybill = normalizeLocationInput(completeFormData.portOfDestination as string | undefined, destinationRouteLocation)
       const timelineForWaybill = generateLocalShipmentTimeline(
         buildTimelineInput({
-          origin: completeFormData.portOfDeparture || getModeLocation(departureCountry, transportMode),
-          destination: completeFormData.portOfDestination || getModeLocation(destinationCountry, transportMode),
+          origin: departureForWaybill,
+          destination: destinationForWaybill,
           departureDate: completeFormData.dateOfIssue || completeFormData.departureDate || smartDefaults.dateOfIssue,
           estimatedDeliveryDate: completeFormData.estimatedArrivalDate || completeFormData.estimatedDeliveryDate,
         })
@@ -297,6 +374,10 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
 
       const waybillData: WaybillFormData = {
         ...completeFormData,
+        portOfDeparture: departureForWaybill,
+        portOfDestination: destinationForWaybill,
+        airportOfDeparture: departureForWaybill,
+        airportOfDestination: destinationForWaybill,
         paymentStatus: userInput.paymentStatus || 'NOT PAID',
         routeNumber: autoRouteNumber,
         serviceTypeString: serviceType,
@@ -444,7 +525,7 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
           {/* Departure Country */}
           <div className="p-3 bg-white/10 rounded-lg border border-white/20">
             <label className="block text-sm font-medium text-white/80 mb-2">
-              Departure Country / {terminalLabel}
+              Departure Preset / {terminalLabel}
             </label>
             <select
               value={departureCountry.code}
@@ -457,15 +538,25 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-white/50 mt-2">
-              Selected: <span className="text-[#9DC400]">{getModeLocation(departureCountry, transportMode)}</span>
+            <label className="mt-3 block text-sm font-medium text-white/80 mb-2">
+              Departure City / Country
+            </label>
+            <input
+              type="text"
+              value={departureLocationInput}
+              onChange={(e) => handleDepartureLocationInput(e.target.value)}
+              className="w-full px-4 py-3 min-h-[48px] bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/40 font-semibold focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition"
+              placeholder="e.g., Lagos, Nigeria or Lagos/LOS"
+            />
+            <p className="text-xs text-white/50 mt-2 break-words">
+              Selected: <span className="text-[#9DC400]">{departureRouteLocation}</span>
             </p>
           </div>
 
           {/* Destination Country */}
           <div className="p-3 bg-white/10 rounded-lg border border-white/20">
             <label className="block text-sm font-medium text-white/80 mb-2">
-              Destination Country / {terminalLabel}
+              Destination Preset / {terminalLabel}
             </label>
             <select
               value={destinationCountry.code}
@@ -478,31 +569,41 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-white/50 mt-2">
-              Selected: <span className="text-[#9DC400]">{getModeLocation(destinationCountry, transportMode)}</span>
+            <label className="mt-3 block text-sm font-medium text-white/80 mb-2">
+              Destination City / Country
+            </label>
+            <input
+              type="text"
+              value={destinationLocationInput}
+              onChange={(e) => handleDestinationLocationInput(e.target.value)}
+              className="w-full px-4 py-3 min-h-[48px] bg-white/10 border border-white/30 rounded-xl text-white placeholder-white/40 font-semibold focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition"
+              placeholder="e.g., Toronto, Canada or Toronto/YYZ"
+            />
+            <p className="text-xs text-white/50 mt-2 break-words">
+              Selected: <span className="text-[#9DC400]">{destinationRouteLocation}</span>
             </p>
           </div>
         </div>
 
         {/* Route Preview */}
         <div className="mt-4 p-3 bg-[#9DC400]/10 rounded-lg border border-[#9DC400]/30">
-          <div className="flex items-center justify-center gap-4 text-sm">
-            <div className="text-center">
-              <span className="block text-[#9DC400] font-bold text-lg">{departureCountry.city}</span>
-              <span className="text-white/60 text-xs">{departureCountry.name}</span>
+          <div className="flex flex-col items-center justify-center gap-3 text-sm sm:flex-row sm:gap-4">
+            <div className="w-full min-w-0 text-center sm:w-1/3">
+              <span className="block break-words text-[#9DC400] font-bold text-base sm:text-lg">{departureRoutePreview.primary}</span>
+              <span className="break-words text-white/60 text-xs">{departureRoutePreview.secondary}</span>
             </div>
             
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <span className="text-[#9DC400] text-xs font-semibold">{routeSymbol}</span>
-              <div className="w-16 h-0.5 bg-[#9DC400]/50"></div>
+              <div className="w-10 h-0.5 bg-[#9DC400]/50 sm:w-16"></div>
               <span className="text-white/40">-&gt;</span>
-              <div className="w-16 h-0.5 bg-[#9DC400]/50"></div>
+              <div className="w-10 h-0.5 bg-[#9DC400]/50 sm:w-16"></div>
               <span className="text-[#9DC400] text-xs font-semibold">{routeSymbol}</span>
             </div>
             
-            <div className="text-center">
-              <span className="block text-[#9DC400] font-bold text-lg">{destinationCountry.city}</span>
-              <span className="text-white/60 text-xs">{destinationCountry.name}</span>
+            <div className="w-full min-w-0 text-center sm:w-1/3">
+              <span className="block break-words text-[#9DC400] font-bold text-base sm:text-lg">{destinationRoutePreview.primary}</span>
+              <span className="break-words text-white/60 text-xs">{destinationRoutePreview.secondary}</span>
             </div>
           </div>
         </div>

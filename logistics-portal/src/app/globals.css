@@ -1321,6 +1321,102 @@ iframe {
   background: #9dc400;
 }
 
+.tracking-route-map-panel .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #091521;
+  font-family: inherit;
+}
+
+.tracking-route-map-panel .leaflet-control-attribution,
+.tracking-route-map-panel .leaflet-control-scale,
+.tracking-route-map-panel .leaflet-control-zoom a {
+  background: rgba(7, 20, 33, 0.82);
+  color: #d8e6f6;
+  border-color: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+}
+
+.tracking-route-map-panel .leaflet-control-zoom a {
+  color: #d8e6f6;
+}
+
+.tracking-route-map-panel .leaflet-control-attribution a {
+  color: #d7ef7b;
+}
+
+.tracking-map-marker-icon {
+  background: transparent;
+  border: 0;
+}
+
+.tracking-map-marker {
+  position: relative;
+  display: block;
+}
+
+.tracking-map-marker--origin,
+.tracking-map-marker--destination {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+}
+
+.tracking-map-marker--origin {
+  background: #9dc400;
+  box-shadow: 0 0 0 6px rgba(157, 196, 0, 0.16), 0 0 18px rgba(157, 196, 0, 0.55);
+}
+
+.tracking-map-marker--destination {
+  background: #55d5ff;
+  box-shadow: 0 0 0 6px rgba(85, 213, 255, 0.16), 0 0 18px rgba(85, 213, 255, 0.52);
+}
+
+.tracking-map-marker--moving {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(157, 196, 0, 0.55);
+  animation: tracking-route-marker-pulse 1.8s ease-in-out infinite;
+}
+
+.tracking-map-marker--moving.tracking-map-marker--on-hold {
+  border-color: rgba(245, 158, 11, 0.55);
+  animation: tracking-route-marker-hold 2.8s ease-in-out infinite;
+}
+
+.tracking-map-marker--moving svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+@keyframes tracking-route-marker-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.88;
+  }
+}
+
+@keyframes tracking-route-marker-hold {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.04);
+    opacity: 0.95;
+  }
+}
+
 .logistics-fade-in {
   animation: tracking-fade-in 0.45s ease-out both;
 }

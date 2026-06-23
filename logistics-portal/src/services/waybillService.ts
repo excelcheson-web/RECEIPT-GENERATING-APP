@@ -13,6 +13,7 @@ import {
 } from 'firebase/firestore';
 import type { StoredWaybill, TrackingEventRecord, WaybillFormData } from '@/lib/types';
 import { applyRuntimeToWaybill, normalizeTrackingEvents } from '@/lib/trackingAutomation';
+import { generateLocalShipmentTimeline } from '@/lib/localShipmentTimeline';
 
 export type TrackingEvent = TrackingEventRecord;
 export type Waybill = StoredWaybill;
@@ -603,6 +604,41 @@ function normalizeServiceTypeLabel(waybillData: WaybillFormData): string {
   );
 }
 
+function resolveShipmentMode(waybillData: WaybillFormData): 'AIR' | 'SEA' | 'LAND' | 'DOOR_TO_DOOR' {
+  if (
+    waybillData.transportMode === 'AIR' ||
+    waybillData.transportMode === 'SEA' ||
+    waybillData.transportMode === 'LAND' ||
+    waybillData.transportMode === 'DOOR_TO_DOOR'
+  ) {
+    return waybillData.transportMode
+  }
+
+  return 'AIR'
+}
+
+function resolveDeliveryType(waybillData: WaybillFormData): 'DOOR_TO_DOOR' | 'OFFICE_PICKUP' {
+  return waybillData.deliveryType === 'OFFICE_PICKUP' ? 'OFFICE_PICKUP' : 'DOOR_TO_DOOR'
+}
+
+function buildStandardTrackingEvents(waybillData: WaybillFormData, origin: string, destination: string, nowIso: string): TrackingEvent[] {
+  return generateLocalShipmentTimeline({
+    shipmentMode: resolveShipmentMode(waybillData),
+    serviceType: normalizeServiceTypeLabel(waybillData),
+    deliveryType: resolveDeliveryType(waybillData),
+    origin,
+    destination,
+    departureDate: waybillData.dateOfIssue || waybillData.departureDate || waybillData.createdAt || nowIso,
+    estimatedDeliveryDate: waybillData.estimatedArrivalDate || waybillData.estimatedDeliveryDate || waybillData.arrivalDate || '',
+  }).map((event) => ({
+    status: event.status,
+    location: event.location,
+    description: event.description,
+    eventTime: event.eventTime,
+    isHold: event.isHold,
+  }))
+}
+
 export function buildStoredWaybillFromFormData(waybillData: WaybillFormData): Waybill {
   const now = new Date().toISOString();
   const waybillNumber = normalizeWaybillLookupInput(waybillData.waybillNumber || waybillData.trackingNumber || '');
@@ -629,7 +665,7 @@ export function buildStoredWaybillFromFormData(waybillData: WaybillFormData): Wa
           eventTime: event.eventTime || now,
           isHold: Boolean(event.isHold),
         }))
-      : createInitialTrackingEvents(origin)
+      : buildStandardTrackingEvents(waybillData, origin, destination, now)
   );
 
   const payload: Waybill = {
@@ -689,6 +725,9 @@ async function syncRuntimeState(docRef: DocumentReference, data: Waybill): Promi
       currentLocation: runtimeWaybill.currentLocation,
       trackingEvents: runtimeWaybill.trackingEvents,
       timelineOnHold: runtimeWaybill.timelineOnHold,
+      estimatedDeliveryDate: runtimeWaybill.estimatedDeliveryDate,
+      estimatedArrivalDate: runtimeWaybill.estimatedArrivalDate,
+      arrivalDate: runtimeWaybill.arrivalDate,
       updatedAt: new Date().toISOString(),
       ...(timelineAlignment.corrected &&
         timelineAlignment.markerValue && {
@@ -729,7 +768,12 @@ export async function createWaybill(waybill: Waybill) {
     trackingEvents: dedupeAndSortEvents(
       Array.isArray(waybill.trackingEvents) && waybill.trackingEvents.length > 0
         ? waybill.trackingEvents
-        : createInitialTrackingEvents(waybill.origin || waybill.portOfDeparture || '')
+        : buildStandardTrackingEvents(
+            waybill as WaybillFormData,
+            waybill.origin || waybill.portOfDeparture || 'Origin Facility',
+            waybill.destination || waybill.portOfDestination || 'Destination Facility',
+            now
+          )
     ),
   });
 
@@ -812,6 +856,9 @@ export async function updateWaybillTimeline(waybillNumber: string, events: Track
     currentStatus: runtime.currentStatus,
     currentLocation: runtime.currentLocation,
     timelineOnHold: runtime.timelineOnHold,
+    estimatedDeliveryDate: runtime.estimatedDeliveryDate,
+    estimatedArrivalDate: runtime.estimatedArrivalDate,
+    arrivalDate: runtime.arrivalDate,
     updatedAt: runtime.updatedAt || nowIso,
     deliveredDate: runtime.deliveredDate || '',
   });

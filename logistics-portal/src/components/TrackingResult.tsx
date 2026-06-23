@@ -1,9 +1,13 @@
+'use client'
+
 import React from 'react'
+import dynamic from 'next/dynamic'
 import { normalizeWaybill } from '@/lib/waybillNormalization'
-import { computeRuntimeTrackingState } from '@/lib/trackingAutomation'
 import type { StoredWaybill } from '@/lib/types'
 import { TrackingTimeline, type TrackingEvent } from './TrackingTimeline'
-import { ShipmentRouteMap } from './ShipmentRouteMap'
+import { useLiveTrackingRuntime } from '@/hooks/useLiveTrackingRuntime'
+
+const ShipmentRouteMap = dynamic(() => import('./ShipmentRouteMap').then((m) => m.ShipmentRouteMap), { ssr: false })
 
 interface TrackingResultProps {
   waybill: StoredWaybill
@@ -81,11 +85,12 @@ export const TrackingResult: React.FC<TrackingResultProps> = ({ waybill, layout 
   if (!waybill) return null
 
   const data = normalizeWaybill(waybill)
-  const runtime = computeRuntimeTrackingState(data.trackingEvents)
+  const runtime = useLiveTrackingRuntime(data.trackingEvents, 4500)
   const runtimeEvents = runtime.events as TrackingEvent[]
   const activeEvent = runtime.activeEventIndex >= 0 ? runtime.events[runtime.activeEventIndex] : null
   const currentStatus = runtime.currentStatus || data.currentStatus
   const currentLocation = runtime.currentLocation || data.currentLocation
+  const projectedDeliveryDate = runtime.projectedCompletionDate || data.estimatedDeliveryDate || data.estimatedArrivalDate || ''
   const transportCodeLabel = data.shipmentMode.toUpperCase().includes('SEA') ? 'SCAC Code' : 'IATA / Carrier Code'
   const wrapClass = layout === 'vertical' ? 'grid grid-cols-1 gap-6' : 'grid grid-cols-1 xl:grid-cols-12 gap-6'
   const leftClass = layout === 'vertical' ? '' : 'xl:col-span-7'
@@ -113,7 +118,7 @@ export const TrackingResult: React.FC<TrackingResultProps> = ({ waybill, layout 
             <Field label="Waybill Number" value={data.waybillNumber} />
             <Field label="Current Location" value={currentLocation} />
             <Field label="Booked On" value={formatDateValue(data.bookingDate)} />
-            <Field label="Estimated Delivery" value={formatDateValue(data.estimatedDeliveryDate)} />
+            <Field label="Estimated Delivery" value={formatDateValue(projectedDeliveryDate)} />
           </div>
 
           <div className="mt-5 rounded-xl border border-lime-300/30 bg-lime-400/10 p-4">
@@ -131,8 +136,8 @@ export const TrackingResult: React.FC<TrackingResultProps> = ({ waybill, layout 
           origin={data.origin}
           destination={data.destination}
           currentLocation={currentLocation}
-          events={runtimeEvents}
-          activeEventIndex={runtime.activeEventIndex}
+          runtime={runtime}
+          shipmentMode={data.shipmentMode}
         />
       </div>
 

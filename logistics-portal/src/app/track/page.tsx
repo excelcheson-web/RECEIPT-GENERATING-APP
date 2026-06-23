@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useCallback, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { TrackingResult } from '@/components/TrackingResult'
@@ -70,6 +70,31 @@ function TrackPageContent() {
     if (!searchedValue) return
     void handleSearch(searchedValue, true)
   }, [handleSearch, searchedValue])
+
+  useEffect(() => {
+    if (state !== 'success' || !searchedValue || !result) return
+
+    let cancelled = false
+    const refresh = async () => {
+      try {
+        const latest = await getWaybillByNumber(searchedValue)
+        if (!cancelled && latest) {
+          setResult(latest)
+        }
+      } catch (error) {
+        console.error('[track page] refresh failed', error)
+      }
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refresh()
+    }, 30000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+    }
+  }, [result, searchedValue, state])
 
   return (
     <main className="logistics-page-bg px-4 py-8 sm:px-6 lg:px-8">

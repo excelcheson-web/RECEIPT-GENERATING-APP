@@ -111,13 +111,18 @@ function normalizeTrackingEvents(raw: StoredWaybill): TrackingEventRecord[] {
 
   const combined = [...events, ...mappedTransit]
     .filter((event) => asString(event?.status) !== '' || asString(event?.eventTime) !== '')
-    .map((event) => ({
-      status: asString(event?.status) || 'Status Update',
-      location: asString(event?.location) || 'Unknown Location',
-      description: asString(event?.description) || 'No description provided',
-      eventTime: asString(event?.eventTime) || new Date(0).toISOString(),
-      isHold: Boolean(event?.isHold),
-    }))
+    .map((event) => {
+      const isHold = Boolean(event?.isHold)
+      const rawCondition = asString((event as { holdCondition?: unknown })?.holdCondition)
+      return {
+        status: asString(event?.status) || 'Status Update',
+        location: asString(event?.location) || 'Unknown Location',
+        description: asString(event?.description) || 'No description provided',
+        eventTime: asString(event?.eventTime) || new Date(0).toISOString(),
+        isHold,
+        holdCondition: isHold && rawCondition ? rawCondition : undefined,
+      }
+    })
 
   combined.sort((a, b) => {
     const timeA = Date.parse(a.eventTime)

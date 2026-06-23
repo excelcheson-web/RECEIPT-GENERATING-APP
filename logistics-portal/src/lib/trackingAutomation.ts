@@ -6,8 +6,11 @@ export interface RuntimeTrackingState {
   reachedEventIndex: number
   holdEventIndex: number
   isOnHold: boolean
+  holdCondition: string
   currentStatus: string
   currentLocation: string
+  progressRatio: number
+  projectedCompletionDate: string
 }
 
 function normalizeEventTime(eventTime: string, fallbackTime: string): string {
@@ -27,9 +30,10 @@ export function normalizeTrackingEvents(events: TrackingEventRecord[], fallbackL
       description: (event.description || 'No description provided.').trim() || 'No description provided.',
       eventTime: normalizeEventTime(event.eventTime, now),
       isHold: Boolean(event.isHold),
+      holdCondition: event.isHold && event.holdCondition ? event.holdCondition.trim() : undefined,
     }
 
-    const key = `${normalized.status}|${normalized.location}|${normalized.description}|${normalized.eventTime}|${normalized.isHold ? '1' : '0'}|${index}`
+    const key = `${normalized.status}|${normalized.location}|${normalized.description}|${normalized.eventTime}|${normalized.isHold ? '1' : '0'}|${normalized.holdCondition || ''}|${index}`
     unique.set(key, normalized)
   })
 
@@ -45,8 +49,11 @@ export function computeRuntimeTrackingState(events: TrackingEventRecord[], now: 
       reachedEventIndex: -1,
       holdEventIndex: -1,
       isOnHold: false,
+      holdCondition: '',
       currentStatus: 'Shipment Created',
       currentLocation: 'Origin Facility',
+      progressRatio: 0,
+      projectedCompletionDate: '',
     }
   }
 
@@ -68,8 +75,27 @@ export function computeRuntimeTrackingState(events: TrackingEventRecord[], now: 
     isOnHold = true
   }
 
+  const lastIndex = normalized.length - 1
+  const firstMs = Date.parse(normalized[0]?.eventTime || '')
+  const lastMs = Date.parse(normalized[lastIndex]?.eventTime || '')
+  const projectedCompletionDate =
+    Number.isNaN(lastMs) || lastMs <= 0 ? normalized[lastIndex]?.eventTime || '' : new Date(lastMs).toISOString()
+
+  let progressRatio = 0
+  if (isOnHold && holdEventIndex >= 0) {
+    progressRatio = lastIndex <= 0 ? 1 : holdEventIndex / lastIndex
+  } else if (!Number.isNaN(firstMs) && !Number.isNaN(lastMs) && lastMs > firstMs) {
+    progressRatio = Math.min(Math.max((nowMs - firstMs) / (lastMs - firstMs), 0), 1)
+  } else if (lastIndex > 0) {
+    progressRatio = Math.min(Math.max(reachedEventIndex / lastIndex, 0), 1)
+  } else {
+    progressRatio = 1
+  }
+
   const activeEvent = normalized[activeEventIndex] || normalized[0]
   const baseStatus = activeEvent?.status || 'Shipment Created'
+  const holdCondition = isOnHold ? (activeEvent?.holdCondition || '') : ''
+  const holdLabel = holdCondition ? ` — ${holdCondition}` : ' (On Hold)'
 
   return {
     events: normalized,
@@ -77,8 +103,11 @@ export function computeRuntimeTrackingState(events: TrackingEventRecord[], now: 
     reachedEventIndex,
     holdEventIndex,
     isOnHold,
-    currentStatus: isOnHold ? `${baseStatus} (On Hold)` : baseStatus,
+    holdCondition,
+    currentStatus: isOnHold ? `${baseStatus}${holdLabel}` : baseStatus,
     currentLocation: activeEvent?.location || 'Origin Facility',
+    progressRatio,
+    projectedCompletionDate,
   }
 }
 
@@ -94,6 +123,11 @@ export function applyRuntimeToWaybill(waybill: StoredWaybill, now: Date = new Da
     runtime.activeEventIndex === runtime.events.length - 1 &&
     !runtime.isOnHold &&
     runtime.currentStatus.toLowerCase().includes('delivered')
+  const projectedCompletionDate: string =
+    runtime.projectedCompletionDate ||
+    waybill.estimatedDeliveryDate ||
+    waybill.estimatedArrivalDate ||
+    ''
 
   return {
     ...waybill,
@@ -101,7 +135,9 @@ export function applyRuntimeToWaybill(waybill: StoredWaybill, now: Date = new Da
     currentStatus: runtime.currentStatus,
     currentLocation: runtime.currentLocation,
     timelineOnHold: runtime.isOnHold,
+    estimatedDeliveryDate: projectedCompletionDate,
+    estimatedArrivalDate: projectedCompletionDate || waybill.estimatedArrivalDate,
+    arrivalDate: projectedCompletionDate || waybill.arrivalDate,
     ...(deliveredReached && { deliveredDate: runtime.events[runtime.activeEventIndex].eventTime }),
   }
 }
-
