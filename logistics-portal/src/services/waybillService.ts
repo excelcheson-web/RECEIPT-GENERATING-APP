@@ -628,8 +628,8 @@ function buildStandardTrackingEvents(waybillData: WaybillFormData, origin: strin
     deliveryType: resolveDeliveryType(waybillData),
     origin,
     destination,
-    departureDate: waybillData.dateOfIssue || waybillData.departureDate || waybillData.createdAt || nowIso,
-    estimatedDeliveryDate: waybillData.estimatedArrivalDate || waybillData.estimatedDeliveryDate || waybillData.arrivalDate || '',
+    departureDate: waybillData.transitStartDate || waybillData.dateOfIssue || waybillData.departureDate || waybillData.createdAt || nowIso,
+    estimatedDeliveryDate: waybillData.transitEndDate || waybillData.estimatedArrivalDate || waybillData.estimatedDeliveryDate || waybillData.arrivalDate || '',
   }).map((event) => ({
     status: event.status,
     location: event.location,
@@ -704,6 +704,8 @@ export function buildStoredWaybillFromFormData(waybillData: WaybillFormData): Wa
     createdAt: waybillData.createdAt || now,
     updatedAt: now,
     trackingEvents: timelineEvents,
+    ...(waybillData.transitStartDate ? { transitStartDate: waybillData.transitStartDate } : {}),
+    ...(waybillData.transitEndDate ? { transitEndDate: waybillData.transitEndDate } : {}),
   };
 
   return applyRuntimeToWaybill(payload);
@@ -818,7 +820,11 @@ export async function getWaybillByNumber(waybillNumber: string): Promise<Waybill
   return syncRuntimeState(firstTracking.ref, firstTracking.data() as Waybill);
 }
 
-export async function updateWaybillTimeline(waybillNumber: string, events: TrackingEvent[]): Promise<Waybill | null> {
+export async function updateWaybillTimeline(
+  waybillNumber: string,
+  events: TrackingEvent[],
+  options?: { transitStartDate?: string; transitEndDate?: string }
+): Promise<Waybill | null> {
   const normalizedWaybillNumber = normalizeWaybillLookupInput(waybillNumber);
   if (!normalizedWaybillNumber) {
     throw new WaybillServiceError({
@@ -861,6 +867,8 @@ export async function updateWaybillTimeline(waybillNumber: string, events: Track
     arrivalDate: runtime.arrivalDate,
     updatedAt: runtime.updatedAt || nowIso,
     deliveredDate: runtime.deliveredDate || '',
+    ...(options?.transitStartDate ? { transitStartDate: options.transitStartDate } : {}),
+    ...(options?.transitEndDate ? { transitEndDate: options.transitEndDate } : {}),
   });
 
   await runFirestoreOperation(

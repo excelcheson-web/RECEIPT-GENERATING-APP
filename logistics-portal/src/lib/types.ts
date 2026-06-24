@@ -236,6 +236,8 @@ export interface WaybillFormData {
   estimatedArrivalDate?: string;
   estimatedDeliveryDate?: string;
   createdAt?: string;
+  transitStartDate?: string;
+  transitEndDate?: string;
   
   // === SERVICE TYPE (Legacy structure) ===
   serviceType?: {
@@ -446,6 +448,9 @@ export interface StoredWaybill extends Omit<Partial<WaybillFormData>, 'serviceTy
   createdAt?: string;
   updatedAt?: string;
   dateOfIssue?: string;
+
+  transitStartDate?: string;
+  transitEndDate?: string;
 
   trackingEvents?: TrackingEventRecord[];
   deliveryType?: 'DOOR_TO_DOOR' | 'OFFICE_PICKUP';

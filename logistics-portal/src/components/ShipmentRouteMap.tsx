@@ -120,6 +120,7 @@ export const ShipmentRouteMap: React.FC<ShipmentRouteMapProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null)
   const mapRef = useRef<L.Map | null>(null)
+  const glowLineRef = useRef<L.Polyline | null>(null)
   const routeLineRef = useRef<L.Polyline | null>(null)
   const originMarkerRef = useRef<L.Marker | null>(null)
   const destinationMarkerRef = useRef<L.Marker | null>(null)
@@ -251,6 +252,7 @@ export const ShipmentRouteMap: React.FC<ShipmentRouteMapProps> = ({
       resizeObserver.disconnect()
       map.remove()
       mapRef.current = null
+      glowLineRef.current = null
       routeLineRef.current = null
       originMarkerRef.current = null
       destinationMarkerRef.current = null
@@ -263,6 +265,8 @@ export const ShipmentRouteMap: React.FC<ShipmentRouteMapProps> = ({
     if (!map) return
 
     if (!geoState.origin || !geoState.destination || routePoints.length === 0) {
+      glowLineRef.current?.remove()
+      glowLineRef.current = null
       routeLineRef.current?.remove()
       routeLineRef.current = null
       originMarkerRef.current?.remove()
@@ -278,11 +282,24 @@ export const ShipmentRouteMap: React.FC<ShipmentRouteMapProps> = ({
     const routeColor = runtime.isOnHold ? '#f59e0b' : '#9DC400'
     const bounds = L.latLngBounds(routePoints)
 
+    if (!glowLineRef.current) {
+      glowLineRef.current = L.polyline(routePoints, {
+        color: routeColor,
+        weight: 16,
+        opacity: 0.1,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(map)
+    } else {
+      glowLineRef.current.setLatLngs(routePoints)
+      glowLineRef.current.setStyle({ color: routeColor })
+    }
+
     if (!routeLineRef.current) {
       routeLineRef.current = L.polyline(routePoints, {
         color: routeColor,
         weight: 3,
-        opacity: 0.9,
+        opacity: 1,
         lineCap: 'round',
         lineJoin: 'round',
         dashArray: '8 12',
@@ -362,8 +379,14 @@ export const ShipmentRouteMap: React.FC<ShipmentRouteMapProps> = ({
       : 'Timeline paused'
     : 'Timeline active'
 
+  const glowColor = runtime.isOnHold ? 'rgba(245,158,11,0.18)' : 'rgba(157,196,0,0.18)'
+  const glowBorder = runtime.isOnHold ? 'rgba(245,158,11,0.3)' : 'rgba(157,196,0,0.28)'
+
   return (
-    <section className="logistics-card tracking-grid-overlay p-5 sm:p-6">
+    <section
+      className="logistics-card tracking-grid-overlay p-5 sm:p-6"
+      style={{ boxShadow: `0 0 48px ${glowColor}, 0 16px 30px rgba(0,0,0,0.28)` }}
+    >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-white">Live Route Map</h3>
@@ -380,13 +403,19 @@ export const ShipmentRouteMap: React.FC<ShipmentRouteMapProps> = ({
         </span>
       </div>
 
-      <div className="tracking-route-map-panel relative overflow-hidden rounded-2xl border border-[#314d6d] bg-[#071421]">
+      <div
+        className="tracking-route-map-panel relative overflow-hidden rounded-2xl bg-[#071421]"
+        style={{
+          border: `1px solid ${glowBorder}`,
+          boxShadow: `0 0 0 1px ${glowColor}, 0 0 32px ${glowColor}, 0 0 64px rgba(157,196,0,0.06)`,
+        }}
+      >
         <div className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(to_bottom,rgba(7,20,33,0.14),rgba(7,20,33,0.5))]" />
 
-        <div className="pointer-events-none absolute left-4 top-4 z-[2] space-y-2">
+        <div className="pointer-events-none absolute left-4 top-4 z-2 max-w-[48%] space-y-2 sm:max-w-60">
           <div className="rounded-xl border border-white/10 bg-[#0b1a2bcc] px-3 py-2 backdrop-blur-md">
             <p className="text-[10px] uppercase tracking-[0.24em] text-[#92acd0]">Current</p>
-            <p className="mt-1 max-w-[15rem] break-words text-sm font-semibold text-white">{currentLocation}</p>
+            <p className="mt-1 wrap-break-word text-sm font-semibold text-white">{currentLocation}</p>
           </div>
           <div className="rounded-xl border border-white/10 bg-[#0b1a2bcc] px-3 py-2 backdrop-blur-md">
             <p className="text-[10px] uppercase tracking-[0.24em] text-[#92acd0]">
@@ -398,7 +427,7 @@ export const ShipmentRouteMap: React.FC<ShipmentRouteMapProps> = ({
           </div>
         </div>
 
-        <div className="pointer-events-none absolute right-4 top-4 z-[2] w-[11rem] rounded-xl border border-white/10 bg-[#0b1a2bcc] px-3 py-2 text-right backdrop-blur-md">
+        <div className="pointer-events-none absolute right-4 bottom-4 z-2 w-44 rounded-xl border border-white/10 bg-[#0b1a2bcc] px-3 py-2 text-right backdrop-blur-md sm:top-4 sm:bottom-auto">
           <p className="text-[10px] uppercase tracking-[0.24em] text-[#92acd0]">Progress</p>
           <p className="mt-1 text-2xl font-semibold text-white">{progressText}</p>
           <p className="text-xs text-[#9fb7d4]">{runtime.currentStatus}</p>

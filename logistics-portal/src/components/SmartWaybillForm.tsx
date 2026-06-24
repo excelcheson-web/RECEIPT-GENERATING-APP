@@ -169,6 +169,8 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
   const [generatedPdfUrl, setGeneratedPdfUrl] = useState<string | null>(null)
   const [serviceType, setServiceType] = useState<(typeof SERVICE_TYPE_OPTIONS)[number]>('Standard')
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('DOOR_TO_DOOR')
+  const [transitStartDate, setTransitStartDate] = useState('')
+  const [transitEndDate, setTransitEndDate] = useState('')
   const [projectedTimeline, setProjectedTimeline] = useState<GeneratedTimelineEvent[]>(() =>
     generateLocalShipmentTimeline({
       shipmentMode: transportMode,
@@ -188,8 +190,8 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       deliveryType: overrides.deliveryType || deliveryType,
       origin: overrides.origin ?? (userInput.portOfDeparture || departureRouteLocation),
       destination: overrides.destination ?? (userInput.portOfDestination || destinationRouteLocation),
-      departureDate: overrides.departureDate || smartDefaults.dateOfIssue,
-      estimatedDeliveryDate: overrides.estimatedDeliveryDate || smartDefaults.estimatedArrivalDate,
+      departureDate: overrides.departureDate || transitStartDate || smartDefaults.dateOfIssue,
+      estimatedDeliveryDate: overrides.estimatedDeliveryDate || transitEndDate || smartDefaults.estimatedArrivalDate,
     }),
     [
       deliveryType,
@@ -198,6 +200,8 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
       serviceType,
       smartDefaults.dateOfIssue,
       smartDefaults.estimatedArrivalDate,
+      transitEndDate,
+      transitStartDate,
       transportMode,
       userInput.portOfDeparture,
       userInput.portOfDestination,
@@ -263,8 +267,8 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
         buildTimelineInput({
           origin: departureForWaybill,
           destination: destinationForWaybill,
-          departureDate: completeFormData.dateOfIssue || completeFormData.departureDate || smartDefaults.dateOfIssue,
-          estimatedDeliveryDate: completeFormData.estimatedArrivalDate || completeFormData.estimatedDeliveryDate,
+          departureDate: transitStartDate || completeFormData.dateOfIssue || completeFormData.departureDate || smartDefaults.dateOfIssue,
+          estimatedDeliveryDate: transitEndDate || completeFormData.estimatedArrivalDate || completeFormData.estimatedDeliveryDate,
         })
       )
 
@@ -289,6 +293,8 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
         serviceTypeString: serviceType,
         deliveryType,
         trackingEvents: localTimelineForWaybill,
+        ...(transitStartDate ? { transitStartDate } : {}),
+        ...(transitEndDate ? { transitEndDate } : {}),
       }
       const pdfUrl = await generateWaybillPDF(waybillData)
 
@@ -492,6 +498,62 @@ export function SmartWaybillForm({ onGenerated }: SmartWaybillFormProps) {
             <p className="text-center text-xs text-white/40 mt-2">Enter both locations above to preview the route</p>
           )}
         </div>
+      </div>
+
+      {/* Transit Period (Optional) */}
+      <div className="p-4 rounded-2xl bg-[#001f3f] border-2 border-dashed border-[#9DC400]/50 shadow-lg">
+        <h4 className="text-lg font-semibold text-[#9DC400] mb-1 flex items-center gap-2 uppercase tracking-wide">
+          <span className="w-8 h-8 rounded-full bg-[#9DC400]/20 flex items-center justify-center text-[#9DC400] text-[10px] font-bold">DATE</span>
+          Transit Period
+          <span className="ml-1 rounded-full border border-[#9DC400]/40 px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal text-[#9DC400]/70">Optional</span>
+        </h4>
+        <p className="text-xs text-white/55 mb-4">
+          Set when goods leave and when they are expected to arrive. The timeline will be scaled to fit this window regardless of transport mode. Leave blank to use auto-generated dates.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-white/80 mb-1">Goods Sent Date</label>
+            <input
+              type="date"
+              value={transitStartDate}
+              onChange={(e) => {
+                setTransitStartDate(e.target.value)
+                regenerateProjectedTimeline({ departureDate: e.target.value || undefined })
+              }}
+              className="w-full px-4 py-3 min-h-12 border border-white/20 rounded-xl bg-white/10 text-white focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-white/80 mb-1">Expected Delivery Date</label>
+            <input
+              type="date"
+              value={transitEndDate}
+              onChange={(e) => {
+                setTransitEndDate(e.target.value)
+                regenerateProjectedTimeline({ estimatedDeliveryDate: e.target.value || undefined })
+              }}
+              className="w-full px-4 py-3 min-h-12 border border-white/20 rounded-xl bg-white/10 text-white focus:ring-2 focus:ring-[#9DC400] focus:border-[#9DC400] transition"
+            />
+          </div>
+        </div>
+        {transitStartDate && transitEndDate && (
+          <p className="mt-3 text-xs text-[#d7ef7b]">
+            Timeline will run from <span className="font-semibold">{new Date(transitStartDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span> to <span className="font-semibold">{new Date(transitEndDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>.
+          </p>
+        )}
+        {(transitStartDate || transitEndDate) && (
+          <button
+            type="button"
+            onClick={() => {
+              setTransitStartDate('')
+              setTransitEndDate('')
+              regenerateProjectedTimeline({ departureDate: undefined, estimatedDeliveryDate: undefined })
+            }}
+            className="mt-2 text-xs text-white/40 underline hover:text-white/70 transition"
+          >
+            Clear transit period
+          </button>
+        )}
       </div>
 
       {/* Shipper Information */}

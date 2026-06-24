@@ -52,12 +52,10 @@ function Field({ label, value }: { label: string; value: string | number | null 
 function PartyCard({
   title,
   name,
-  phone,
   address,
 }: {
   title: string
   name: string
-  phone: string
   address: string
 }) {
   return (
@@ -67,10 +65,6 @@ function PartyCard({
         <div>
           <p className="text-[11px] uppercase tracking-wide text-[#87a3c2]">Name</p>
           <p className="text-[#e2ebf7]">{name}</p>
-        </div>
-        <div>
-          <p className="text-[11px] uppercase tracking-wide text-[#87a3c2]">Phone</p>
-          <p className="text-[#e2ebf7]">{phone}</p>
         </div>
         <div>
           <p className="text-[11px] uppercase tracking-wide text-[#87a3c2]">Address</p>
@@ -159,13 +153,8 @@ export const TrackingResult: React.FC<TrackingResultProps> = ({ waybill, layout 
         </article>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-4">
-          <PartyCard title="Sender / Shipper" name={data.senderName} phone={data.senderPhone} address={data.senderAddress} />
-          <PartyCard
-            title="Consignee / Receiver"
-            name={data.receiverName}
-            phone={data.receiverPhone}
-            address={data.receiverAddress}
-          />
+          <PartyCard title="Sender / Shipper" name={data.senderName} address={data.senderAddress} />
+          <PartyCard title="Consignee / Receiver" name={data.receiverName} address={data.receiverAddress} />
         </div>
       </div>
     </section>

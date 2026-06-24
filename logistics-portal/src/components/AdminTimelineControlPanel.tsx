@@ -78,6 +78,32 @@ function stateClasses(label: ReturnType<typeof stateLabel>): string {
   return 'border-slate-400/30 bg-[#122a43] text-slate-200'
 }
 
+function redistributeToTransitWindow(
+  events: EditableTimelineEvent[],
+  startIso: string,
+  endIso: string,
+): EditableTimelineEvent[] {
+  const startMs = Date.parse(startIso)
+  const endMs = Date.parse(endIso)
+  if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs <= startMs || events.length < 2) return events
+
+  const sorted = [...events].sort((a, b) => Date.parse(a.eventTime) - Date.parse(b.eventTime))
+  const firstMs = Date.parse(sorted[0].eventTime)
+  const lastMs = Date.parse(sorted[sorted.length - 1].eventTime)
+  const sourceDuration = Math.max(lastMs - firstMs, 0)
+  const targetDuration = endMs - startMs
+
+  return sorted.map((event, index) => {
+    if (index === 0) return { ...event, eventTime: new Date(startMs).toISOString() }
+    if (index === sorted.length - 1) return { ...event, eventTime: new Date(endMs).toISOString() }
+    const ratio =
+      sourceDuration > 0
+        ? (Date.parse(event.eventTime) - firstMs) / sourceDuration
+        : index / (sorted.length - 1)
+    return { ...event, eventTime: new Date(startMs + Math.round(targetDuration * ratio)).toISOString() }
+  })
+}
+
 export function AdminTimelineControlPanel() {
   const [lookupValue, setLookupValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -89,6 +115,8 @@ export function AdminTimelineControlPanel() {
   const [events, setEvents] = useState<EditableTimelineEvent[]>([])
   const [pendingHoldId, setPendingHoldId] = useState<string | null>(null)
   const [pendingCondition, setPendingCondition] = useState<string>(HOLD_CONDITIONS[0])
+  const [transitStartDate, setTransitStartDate] = useState('')
+  const [transitEndDate, setTransitEndDate] = useState('')
 
   const runtime = useLiveTrackingRuntime(events, 5000)
   const hasLoadedWaybill = loadedWaybill !== null
@@ -130,6 +158,8 @@ export function AdminTimelineControlPanel() {
       setLoadedWaybill(waybill)
       setLookupValue(waybill.waybillNumber || query)
       setEvents(makeEditableEvents(sourceEvents))
+      setTransitStartDate(waybill.transitStartDate || waybill.bookingDate || waybill.dateOfIssue || '')
+      setTransitEndDate(waybill.transitEndDate || waybill.estimatedDeliveryDate || waybill.estimatedArrivalDate || '')
       setFeedback(`Loaded waybill ${waybill.waybillNumber}. You can now control its timeline.`)
     } catch (loadError) {
       console.error(loadError)
@@ -234,7 +264,22 @@ export function AdminTimelineControlPanel() {
     setError(null)
 
     try {
-      const updated = await updateWaybillTimeline(loadedWaybill.waybillNumber, toPersistedEvents(events))
+      const startMs = Date.parse(transitStartDate)
+      const endMs = Date.parse(transitEndDate)
+      const hasValidWindow = !Number.isNaN(startMs) && !Number.isNaN(endMs) && endMs > startMs
+      const eventsToSave = hasValidWindow
+        ? redistributeToTransitWindow(events, transitStartDate, transitEndDate)
+        : events
+      if (hasValidWindow) setEvents(eventsToSave)
+
+      const updated = await updateWaybillTimeline(
+        loadedWaybill.waybillNumber,
+        toPersistedEvents(eventsToSave),
+        {
+          transitStartDate: transitStartDate || undefined,
+          transitEndDate: transitEndDate || undefined,
+        },
+      )
       if (!updated) {
         setError('Waybill could not be updated. Please reload and try again.')
         return
@@ -341,6 +386,48 @@ export function AdminTimelineControlPanel() {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* Transit Period */}
+          <div className="rounded-xl border border-[#9DC400]/30 bg-[#0f2740] p-4">
+            <p className="text-xs uppercase tracking-wide text-[#9DC400]">Transit Period <span className="normal-case tracking-normal text-[#9DC400]/60">(Optional)</span></p>
+            <p className="mt-1 mb-3 text-xs text-white/55">
+              Set a shipment date and expected delivery. Saving will proportionally redistribute all timeline event timestamps to fit this window.
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-white/75">Goods Sent Date</label>
+                <input
+                  type="datetime-local"
+                  value={toInputDateTime(transitStartDate)}
+                  onChange={(e) => setTransitStartDate(fromInputDateTime(e.target.value, ''))}
+                  className="logistics-input-control w-full px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-white/75">Expected Delivery Date</label>
+                <input
+                  type="datetime-local"
+                  value={toInputDateTime(transitEndDate)}
+                  onChange={(e) => setTransitEndDate(fromInputDateTime(e.target.value, ''))}
+                  className="logistics-input-control w-full px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+            {transitStartDate && transitEndDate && Date.parse(transitEndDate) > Date.parse(transitStartDate) && (
+              <p className="mt-2 text-xs text-[#d7ef7b]">
+                Events will span from {new Date(transitStartDate).toLocaleString()} to {new Date(transitEndDate).toLocaleString()} on save.
+              </p>
+            )}
+            {(transitStartDate || transitEndDate) && (
+              <button
+                type="button"
+                onClick={() => { setTransitStartDate(''); setTransitEndDate('') }}
+                className="mt-2 text-xs text-white/40 underline hover:text-white/70 transition"
+              >
+                Clear transit period
+              </button>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2">

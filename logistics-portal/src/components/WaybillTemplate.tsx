@@ -175,7 +175,6 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   const titleX = pageWidth / 2
   const titleY = currentY + 8
   const headerAddressLine = 'GOLDEN CROSS HOUSE, 456-458 STRAND, LONDON, UK'
-  const headerPhoneLine = 'PHONE: +447352998900'
   
   // Position logo to the left of the title with spacing - SIGNIFICANTLY INCREASED SIZE
   const logoWidth = 55  // Increased from 40 to 55 to cover more space
@@ -208,7 +207,6 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
   pdf.setFont('helvetica', 'bold')
   pdf.setFontSize(8)
   pdf.text(headerAddressLine, pageWidth / 2, currentY + 26, { align: 'center' })
-  pdf.text(headerPhoneLine, pageWidth / 2, currentY + 30, { align: 'center' })
 
   // Right: Barcode and Waybill Number
   const barcodeCanvas = document.createElement('canvas')
@@ -299,7 +297,6 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
     [
       { label: 'Name:', value: data.senderName || 'N/A' },
       { label: 'Address:', value: data.senderAddress || 'N/A' },
-      { label: 'Phone:', value: data.senderPhone || (data.senderTelephone as string | undefined) || 'N/A' },
       { label: 'Account:', value: data.senderAccountNo || data.accountNumber || 'N/A' },
     ]
   )
@@ -314,7 +311,6 @@ export async function generateWaybillPDF(data: WaybillFormData): Promise<string>
     [
       { label: 'Name:', value: data.receiverName || 'N/A' },
       { label: 'Address:', value: data.receiverAddress || 'N/A' },
-      { label: 'Phone:', value: data.receiverPhone || (data.receiverTelephone as string | undefined) || 'N/A' },
       { label: 'City:', value: data.receiverCity || 'N/A' },
     ]
   )
