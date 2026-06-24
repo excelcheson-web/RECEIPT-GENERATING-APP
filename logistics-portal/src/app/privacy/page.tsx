@@ -63,7 +63,7 @@ const sections = [
   {
     num: '07',
     title: 'Contact Our DPO',
-    content: 'For privacy-related questions or requests, contact our Data Protection Officer at privacy@skyshiplogistics.com, by phone at +447352998900, or by post to: GOLDEN CROSS HOUSE, 456-458 STRAND, London.',
+    content: 'For privacy-related questions or requests, contact our Data Protection Officer via our Contact page or by post to: GOLDEN CROSS HOUSE, 456-458 STRAND, London.',
   },
 ]
 

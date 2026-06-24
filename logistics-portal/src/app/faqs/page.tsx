@@ -44,7 +44,7 @@ const faqs = [
   },
   {
     question: 'How can I contact customer support?',
-    answer: 'Our team is available 24/7 via Live Chat on our website, email at contact@skyshiplogistics.com, or by phone at +447352998900. You can also start a chat in our Help Center.',
+    answer: 'Our team is available 24/7 via Live Chat on our website. You can also visit our Contact page to send us a message and we will get back to you within 2 business hours.',
   },
 ]
 

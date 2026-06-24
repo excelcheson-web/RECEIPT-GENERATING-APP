@@ -64,7 +64,7 @@ const sections = [
   {
     num: '06',
     title: 'Contact Us',
-    content: 'Questions about our Cookie Policy? Email privacy@skyshiplogistics.com or call +447352998900.',
+    content: 'Questions about our Cookie Policy? Visit our Contact page and send us a message — we reply within 2 business hours.',
   },
 ]
 

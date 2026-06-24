@@ -2,10 +2,8 @@ import React from 'react';
 
 interface ShipmentDetailsCardProps {
   senderName: string;
-  senderPhone: string;
   senderAddress: string;
   receiverName: string;
-  receiverPhone: string;
   receiverAddress: string;
   origin: string;
   destination: string;
@@ -19,10 +17,8 @@ interface ShipmentDetailsCardProps {
 
 export const ShipmentDetailsCard: React.FC<ShipmentDetailsCardProps> = ({
   senderName,
-  senderPhone,
   senderAddress,
   receiverName,
-  receiverPhone,
   receiverAddress,
   origin,
   destination,
@@ -38,7 +34,6 @@ export const ShipmentDetailsCard: React.FC<ShipmentDetailsCardProps> = ({
       <div>
         <div className="font-semibold mb-1">Sender</div>
         <div>{senderName}</div>
-        <div className="text-xs text-gray-500">{senderPhone}</div>
         <div className="text-xs text-gray-500 mb-2">{senderAddress}</div>
         <div className="font-semibold mb-1">Origin</div>
         <div>{origin}</div>
@@ -46,7 +41,6 @@ export const ShipmentDetailsCard: React.FC<ShipmentDetailsCardProps> = ({
       <div>
         <div className="font-semibold mb-1">Receiver</div>
         <div>{receiverName}</div>
-        <div className="text-xs text-gray-500">{receiverPhone}</div>
         <div className="text-xs text-gray-500 mb-2">{receiverAddress}</div>
         <div className="font-semibold mb-1">Destination</div>
         <div>{destination}</div>

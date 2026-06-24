@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { COMPANY_CONTACT } from '@/lib/constants'
+import { SKYSHIP_CONFIG } from '@/lib/constants'
 
 export default function SiteFooter() {
   return (
@@ -24,9 +24,7 @@ export default function SiteFooter() {
               Your trusted partner for global logistics and supply chain solutions. Transparent tracking, reliable delivery worldwide.
             </p>
             <div className="space-y-1 text-sm text-white/50">
-              <p>{COMPANY_CONTACT.email}</p>
-              <p>{COMPANY_CONTACT.phone}</p>
-              <p>{COMPANY_CONTACT.address}</p>
+              <p>{SKYSHIP_CONFIG.address}</p>
             </div>
           </div>
 

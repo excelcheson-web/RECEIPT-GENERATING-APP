@@ -50,7 +50,7 @@ export default function ChatPage() {
     } else if (lowerMessage.includes('time') || lowerMessage.includes('delivery') || lowerMessage.includes('how long') || lowerMessage.includes('when')) {
       return "Delivery times vary by service: Air Freight (1–3 days), Ocean Freight (10–30 days), Road Freight (1–5 days). Express options are available for urgent shipments."
     } else if (lowerMessage.includes('contact') || lowerMessage.includes('support') || lowerMessage.includes('help') || lowerMessage.includes('human')) {
-      return "You can reach our 24/7 support team at:\n📞 Phone: +447352998900\n📧 Email: contact@skyshiplogistics.com\n💬 Live Chat: Available now\nOr visit our Help Center for FAQs."
+      return "You can reach our 24/7 support team via Live Chat right here, or visit our Contact page for more ways to get in touch."
     } else if (lowerMessage.includes('service') || lowerMessage.includes('offer') || lowerMessage.includes('what do you do')) {
       return "We offer comprehensive logistics services:\n✈️ Air Freight\n🚢 Ocean Freight\n🚛 Road Freight\n📦 Warehousing\n🌍 International Shipping\n📋 Customs Clearance\nWhich service interests you?"
     } else if (lowerMessage.includes('hello') || lowerMessage.includes('hi') || lowerMessage.includes('hey')) {
@@ -213,8 +213,7 @@ export default function ChatPage() {
                 </button>
               </div>
               <p className="text-white/35 text-xs mt-2 text-center">
-                Powered by Skyship AI · For urgent matters, call{' '}
-                <a href="tel:+447352998900" className="hover:text-[#9DC400] transition">+447352998900</a>
+                Powered by Skyship AI
               </p>
             </div>
           </div>

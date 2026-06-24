@@ -41,7 +41,7 @@ const sections = [
   {
     num: '07',
     title: 'Contact Information',
-    content: 'For questions about these Terms & Conditions, please contact us at: legal@skyshiplogistics.com or by phone at +447352998900.',
+    content: 'For questions about these Terms & Conditions, please contact us via our Contact page.',
   },
 ]
 
