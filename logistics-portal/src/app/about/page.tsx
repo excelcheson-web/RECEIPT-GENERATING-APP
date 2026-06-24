@@ -90,10 +90,10 @@ export default function AboutPage() {
       <SiteNav active="/about" />
 
       {/* Hero */}
-      <section className="relative pt-32 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <section className="relative pt-20 sm:pt-32 pb-10 sm:pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="max-w-4xl mx-auto text-center">
           <p className="text-[#9DC400] text-sm font-semibold uppercase tracking-[0.25em] mb-4">Who We Are</p>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
             About <span className="text-[#9DC400]">Skyship</span>
           </h1>
           <div className="w-20 h-1 bg-gradient-to-r from-[#9DC400] to-[#7A9A00] mx-auto rounded-full mb-6" />
@@ -107,7 +107,7 @@ export default function AboutPage() {
 
         {/* Vision + Who We Are — side by side on desktop */}
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="glass-panel p-8 sm:p-10">
+          <div className="glass-panel p-5 sm:p-10">
             <div className="identity-icon mb-6">
               <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
                 <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
@@ -119,7 +119,7 @@ export default function AboutPage() {
             </p>
           </div>
 
-          <div className="glass-panel p-8 sm:p-10">
+          <div className="glass-panel p-5 sm:p-10">
             <div className="identity-icon mb-6">
               <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
                 <path d="M6 22h12a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2z"/><path d="M14 2v5a2 2 0 0 0 2 2h5"/>
@@ -133,7 +133,7 @@ export default function AboutPage() {
         </div>
 
         {/* Why Choose Skyship */}
-        <div className="glass-panel p-8 sm:p-12">
+        <div className="glass-panel p-5 sm:p-10">
           <div className="flex items-center gap-3 mb-8">
             <div className="identity-icon flex-shrink-0">
               <svg viewBox="0 0 24 24" fill="none" stroke="#9DC400" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8">
@@ -177,7 +177,7 @@ export default function AboutPage() {
         </div>
 
         {/* Stats strip */}
-        <div className="glass-panel p-8">
+        <div className="glass-panel p-5 sm:p-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
             {[
               { value: '200+', label: 'Countries Served' },
@@ -194,7 +194,7 @@ export default function AboutPage() {
         </div>
 
         {/* CTA */}
-        <div className="hero-glass p-10 text-center">
+        <div className="hero-glass p-5 sm:p-10 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Ready to Ship with Confidence?</h2>
           <p className="text-white/70 mb-6 max-w-xl mx-auto">Contact our team today and get a tailored logistics solution for your business.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

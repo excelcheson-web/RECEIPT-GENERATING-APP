@@ -56,9 +56,9 @@ export default function FAQsPage() {
       <SiteNav />
 
       {/* Hero */}
-      <section className="pt-32 pb-12 px-4 sm:px-6 lg:px-8 text-center">
+      <section className="pt-20 sm:pt-32 pb-8 sm:pb-12 px-4 sm:px-6 lg:px-8 text-center">
         <p className="text-[#9DC400] text-sm font-semibold uppercase tracking-[0.25em] mb-4">Help Centre</p>
-        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
+        <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">
           Frequently Asked <span className="text-[#9DC400]">Questions</span>
         </h1>
         <div className="w-20 h-1 bg-[#9DC400] mx-auto rounded-full mb-4" />

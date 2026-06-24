@@ -252,22 +252,22 @@ export default function Home() {
       {/* Hero Section - NOW USING TRANSLATIONS */}
       <section id="track" className="relative min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 pt-20">
         <div className="max-w-7xl mx-auto w-full">
-          <div className="hero-glass-panel p-8 sm:p-12 lg:p-16 max-w-3xl mx-auto text-center">
+          <div className="hero-glass-panel p-5 sm:p-10 lg:p-16 max-w-3xl mx-auto text-center">
             {/* Main Headline */}
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white text-high-contrast mb-6 leading-tight">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-white text-high-contrast mb-4 sm:mb-6 leading-tight">
               {t.hero.title1}{' '}
               <span className="text-[#9DC400]">
                 {t.hero.title2}
               </span>
             </h1>
-            
+
             {/* Descriptive Text */}
-            <p className="text-lg sm:text-xl text-white/90 mb-10 max-w-2xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-xl text-white/90 mb-6 sm:mb-10 max-w-2xl mx-auto leading-relaxed">
               {t.hero.description}
             </p>
             
             {/* Glass Input Panel for Tracking */}
-            <form onSubmit={handleTrack} className="glass-panel p-6 sm:p-8 rounded-2xl max-w-xl mx-auto">
+            <form onSubmit={handleTrack} className="glass-panel p-4 sm:p-8 rounded-2xl max-w-xl mx-auto">
               <label className="block text-white/90 text-sm mb-4 font-medium text-left">
                 {t.hero.trackingLabel}
               </label>
@@ -307,13 +307,13 @@ export default function Home() {
 
       {/* Rest of the page remains the same for now - we'll update section by section */}
       {/* Company Identity Section */}
-      <section id="identity" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
+      <section id="identity" className="py-10 sm:py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white text-high-contrast mb-4">
+          <div className="text-center mb-8 sm:mb-14">
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-white text-high-contrast mb-4">
               {t.identity.title}
             </h2>
-            <p className="text-white/70 text-lg max-w-2xl mx-auto">
+            <p className="text-white/70 text-base sm:text-lg max-w-2xl mx-auto">
               {t.identity.subtitle}
             </p>
           </div>
@@ -385,13 +385,13 @@ export default function Home() {
       </section>
 
       {/* Service Modules Section */}
-      <section id="services" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
+      <section id="services" className="py-10 sm:py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12 sm:mb-16">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white text-high-contrast mb-4">
+          <div className="text-center mb-8 sm:mb-14">
+            <h2 className="text-2xl sm:text-4xl lg:text-5xl font-bold text-white text-high-contrast mb-4">
               {t.services.title}
             </h2>
-            <p className="text-white/70 text-lg max-w-2xl mx-auto mb-8">
+            <p className="text-white/70 text-base sm:text-lg max-w-2xl mx-auto mb-6 sm:mb-8">
               {t.services.subtitle}
             </p>
             <Link 
@@ -408,7 +408,7 @@ export default function Home() {
               <Link
                 key={service.id}
                 href="/services"
-                className="glass-card overflow-hidden group cursor-pointer relative h-64"
+                className="glass-card overflow-hidden group cursor-pointer relative h-44 sm:h-56 lg:h-64"
               >
                 <Image
                   src={service.image}
@@ -443,13 +443,13 @@ export default function Home() {
       </section>
 
       {/* Prime Priorities Section */}
-      <section id="priorities" className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
+      <section id="priorities" className="py-10 sm:py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white text-high-contrast mb-4 font-sans">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-4xl font-bold text-white text-high-contrast mb-4 font-sans">
               {t.priorities.title}
             </h2>
-            <p className="text-white/70 text-lg">
+            <p className="text-white/70 text-base sm:text-lg">
               {t.priorities.subtitle}
             </p>
           </div>
@@ -485,20 +485,20 @@ export default function Home() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <section className="py-10 sm:py-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white text-high-contrast mb-4">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-4xl font-bold text-white text-high-contrast mb-4">
               {t.testimonials.title}
             </h2>
-            <p className="text-white/70 text-lg">
+            <p className="text-white/70 text-base sm:text-lg">
               {t.testimonials.subtitle}
             </p>
           </div>
 
           {/* Testimonial Slider */}
           <div className="relative">
-            <div className="glass-panel p-8 sm:p-12 max-w-4xl mx-auto">
+            <div className="glass-panel p-5 sm:p-10 max-w-4xl mx-auto">
               <div className="flex flex-col md:flex-row items-center gap-8">
                 <div className="flex-shrink-0">
                   <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-white/20">
@@ -513,7 +513,7 @@ export default function Home() {
                 </div>
                 
                 <div className="text-center md:text-left flex-1">
-                  <p className="text-white/90 text-lg sm:text-xl italic mb-6 leading-relaxed">
+                  <p className="text-white/90 text-base sm:text-xl italic mb-4 sm:mb-6 leading-relaxed">
                     &ldquo;{testimonials[currentTestimonial].text}&rdquo;
                   </p>
                   <div>
@@ -567,13 +567,13 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
+      <section className="py-10 sm:py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
-          <div className="hero-glass p-8 sm:p-12 text-center">
-            <h2 className="text-3xl sm:text-4xl font-bold text-white text-high-contrast mb-4">
+          <div className="hero-glass p-5 sm:p-10 text-center">
+            <h2 className="text-2xl sm:text-4xl font-bold text-white text-high-contrast mb-4">
               {t.cta.title}
             </h2>
-            <p className="text-white/70 text-lg mb-8 max-w-2xl mx-auto">
+            <p className="text-white/70 text-base sm:text-lg mb-6 sm:mb-8 max-w-2xl mx-auto">
               {t.cta.subtitle}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -620,7 +620,7 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer id="contact" className="glass-footer py-12 px-4 sm:px-6 lg:px-8 mt-16">
+      <footer id="contact" className="glass-footer py-8 sm:py-12 px-4 sm:px-6 lg:px-8 mt-10 sm:mt-16">
         <div className="max-w-7xl mx-auto">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
             <div>

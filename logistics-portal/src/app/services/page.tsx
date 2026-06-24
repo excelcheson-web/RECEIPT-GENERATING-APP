@@ -74,10 +74,10 @@ export default function ServicesPage() {
       <SiteNav active="/services" />
 
       {/* Hero */}
-      <section className="pt-32 pb-16 px-4 sm:px-6 lg:px-8">
+      <section className="pt-20 sm:pt-32 pb-10 sm:pb-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
           <p className="text-[#9DC400] text-sm font-semibold uppercase tracking-[0.25em] mb-4">What We Offer</p>
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
             Our <span className="text-[#9DC400]">Services</span>
           </h1>
           <div className="w-20 h-1 bg-linear-to-r from-[#9DC400] to-[#7A9A00] mx-auto rounded-full mb-6" />
@@ -94,7 +94,7 @@ export default function ServicesPage() {
             <div key={service.id} className="glass-card overflow-hidden">
               <div className={`grid md:grid-cols-2 gap-0 ${index % 2 !== 0 ? 'md:[&>*:first-child]:order-2' : ''}`}>
                 {/* Image */}
-                <div className="relative h-64 md:h-auto min-h-[320px]">
+                <div className="relative h-52 md:h-auto min-h-80">
                   <Image
                     src={service.image}
                     alt={service.title}
@@ -104,7 +104,7 @@ export default function ServicesPage() {
                   />
                   <div className="absolute inset-0 bg-linear-to-r from-black/70 via-black/30 to-transparent" />
                   <div className="absolute bottom-6 left-6 right-6">
-                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r ${service.color} border ${service.border} backdrop-blur-sm mb-3`}>
+                    <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-linear-to-r ${service.color} border ${service.border} backdrop-blur-sm mb-3`}>
                       <span className="text-white">{service.icon}</span>
                       <span className="text-white text-xs font-semibold uppercase tracking-wider">{service.shortDesc}</span>
                     </div>
@@ -113,7 +113,7 @@ export default function ServicesPage() {
                 </div>
 
                 {/* Content */}
-                <div className="p-8 md:p-12 flex flex-col justify-center bg-white/5">
+                <div className="p-5 md:p-10 flex flex-col justify-center bg-white/5">
                   <p className="text-white/85 text-base leading-relaxed mb-8">{service.description}</p>
 
                   <p className="text-[#9DC400] text-xs font-semibold uppercase tracking-widest mb-4">Key Features</p>

@@ -51,9 +51,9 @@ export default function TermsPage() {
       <SiteNav />
 
       {/* Hero */}
-      <section className="pt-32 pb-10 px-4 sm:px-6 lg:px-8 text-center">
+      <section className="pt-20 sm:pt-32 pb-8 sm:pb-10 px-4 sm:px-6 lg:px-8 text-center">
         <p className="text-[#9DC400] text-sm font-semibold uppercase tracking-[0.25em] mb-4">Legal</p>
-        <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4">
+        <h1 className="text-3xl sm:text-5xl font-bold text-white mb-4">
           Terms <span className="text-[#9DC400]">&amp; Conditions</span>
         </h1>
         <div className="w-20 h-1 bg-[#9DC400] mx-auto rounded-full mb-4" />
