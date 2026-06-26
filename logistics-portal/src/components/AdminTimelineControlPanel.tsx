@@ -117,6 +117,7 @@ export function AdminTimelineControlPanel() {
   const [pendingCondition, setPendingCondition] = useState<string>(HOLD_CONDITIONS[0])
   const [transitStartDate, setTransitStartDate] = useState('')
   const [transitEndDate, setTransitEndDate] = useState('')
+  const [hasUnsavedEdits, setHasUnsavedEdits] = useState(false)
 
   const runtime = useLiveTrackingRuntime(events, 5000)
   const hasLoadedWaybill = loadedWaybill !== null
@@ -158,6 +159,7 @@ export function AdminTimelineControlPanel() {
       setLoadedWaybill(waybill)
       setLookupValue(waybill.waybillNumber || query)
       setEvents(makeEditableEvents(sourceEvents))
+      setHasUnsavedEdits(false)
       setTransitStartDate(waybill.transitStartDate || waybill.bookingDate || waybill.dateOfIssue || '')
       setTransitEndDate(waybill.transitEndDate || waybill.estimatedDeliveryDate || waybill.estimatedArrivalDate || '')
       setFeedback(`Loaded waybill ${waybill.waybillNumber}. You can now control its timeline.`)
@@ -179,7 +181,62 @@ export function AdminTimelineControlPanel() {
     await loadWaybill(lastLookupAttempt || lookupValue)
   }
 
+  // Core save function used by both auto-save (action buttons) and manual save (Save button).
+  // applyTransitWindow: only true when triggered by the explicit Save button.
+  const doSave = async (eventsToSave: EditableTimelineEvent[], applyTransitWindow = false) => {
+    if (!loadedWaybill) return
+    if (eventsToSave.length === 0) {
+      setError('Timeline must have at least one event before saving.')
+      return
+    }
+
+    setIsSaving(true)
+    setFeedback(null)
+    setError(null)
+
+    try {
+      let finalEvents = eventsToSave
+      if (applyTransitWindow) {
+        const startMs = Date.parse(transitStartDate)
+        const endMs = Date.parse(transitEndDate)
+        const hasValidWindow = !Number.isNaN(startMs) && !Number.isNaN(endMs) && endMs > startMs
+        if (hasValidWindow) {
+          finalEvents = redistributeToTransitWindow(eventsToSave, transitStartDate, transitEndDate)
+          setEvents(finalEvents)
+        }
+      }
+
+      const updated = await updateWaybillTimeline(
+        loadedWaybill.waybillNumber,
+        toPersistedEvents(finalEvents),
+        {
+          transitStartDate: transitStartDate || undefined,
+          transitEndDate: transitEndDate || undefined,
+        },
+      )
+      if (!updated) {
+        setError('Waybill could not be updated. Please reload and try again.')
+        return
+      }
+
+      setLoadedWaybill(updated)
+      setEvents(makeEditableEvents(updated.trackingEvents || []))
+      setHasUnsavedEdits(false)
+      setFeedback(
+        applyTransitWindow
+          ? `Timeline saved for ${updated.waybillNumber}. Runtime control is now active on tracking.`
+          : 'Saved — changes are now live on tracking.',
+      )
+    } catch (saveError) {
+      console.error(saveError)
+      setError(getWaybillErrorMessage(saveError, 'timeline save'))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const updateEvent = (id: string, field: 'status' | 'location' | 'description' | 'eventTime', value: string) => {
+    setHasUnsavedEdits(true)
     setEvents((prev) =>
       prev.map((event) => {
         if (event.id !== id) return event
@@ -195,105 +252,65 @@ export function AdminTimelineControlPanel() {
   }
 
   const applyHold = (id: string, condition: string) => {
-    setEvents((prev) =>
-      prev.map((event) =>
-        event.id === id
-          ? { ...event, isHold: true, holdCondition: condition }
-          : event
-      )
+    const updated = events.map((event) =>
+      event.id === id ? { ...event, isHold: true, holdCondition: condition } : event
     )
+    setEvents(updated)
     setPendingHoldId(null)
+    void doSave(updated)
   }
 
   const releaseHold = (id: string) => {
-    setEvents((prev) =>
-      prev.map((event) =>
-        event.id === id ? { ...event, isHold: false, holdCondition: undefined } : event
-      )
+    const updated = events.map((event) =>
+      event.id === id ? { ...event, isHold: false, holdCondition: undefined } : event
     )
+    setEvents(updated)
+    void doSave(updated)
   }
 
   const clearHolds = () => {
-    setEvents((prev) => prev.map((event) => ({ ...event, isHold: false, holdCondition: undefined })))
+    const updated = events.map((event) => ({ ...event, isHold: false, holdCondition: undefined }))
+    setEvents(updated)
+    void doSave(updated)
   }
 
   const addEventAfter = (index: number) => {
-    setEvents((prev) => {
-      const reference = prev[index]
-      const baseTime = Date.parse(reference?.eventTime || '')
-      const safeTime = Number.isNaN(baseTime) ? Date.now() : baseTime
-      const newEvent: EditableTimelineEvent = {
-        id: `evt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-        status: 'Manual Update',
-        location: reference?.location || loadedWaybill?.destination || 'Destination Facility',
-        description: 'Manual milestone inserted by admin control.',
-        eventTime: new Date(safeTime + 3 * 60 * 60 * 1000).toISOString(),
-        isHold: false,
-      }
-
-      const next = [...prev]
-      next.splice(index + 1, 0, newEvent)
-      return next
-    })
+    const reference = events[index]
+    const baseTime = Date.parse(reference?.eventTime || '')
+    const safeTime = Number.isNaN(baseTime) ? Date.now() : baseTime
+    const newEvent: EditableTimelineEvent = {
+      id: `evt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+      status: 'Manual Update',
+      location: reference?.location || loadedWaybill?.destination || 'Destination Facility',
+      description: 'Manual milestone inserted by admin.',
+      eventTime: new Date(safeTime + 3 * 60 * 60 * 1000).toISOString(),
+      isHold: false,
+    }
+    const next = [...events]
+    next.splice(index + 1, 0, newEvent)
+    setEvents(next)
+    void doSave(next)
   }
 
   const removeEvent = (id: string) => {
-    setEvents((prev) => (prev.length <= 1 ? prev : prev.filter((event) => event.id !== id)))
+    if (events.length <= 1) return
+    const updated = events.filter((event) => event.id !== id)
+    setEvents(updated)
+    void doSave(updated)
   }
 
   const moveEvent = (index: number, direction: -1 | 1) => {
-    setEvents((prev) => {
-      const nextIndex = index + direction
-      if (nextIndex < 0 || nextIndex >= prev.length) return prev
-      const next = [...prev]
-      const [event] = next.splice(index, 1)
-      next.splice(nextIndex, 0, event)
-      return next
-    })
+    const nextIndex = index + direction
+    if (nextIndex < 0 || nextIndex >= events.length) return
+    const next = [...events]
+    const [movedEvent] = next.splice(index, 1)
+    next.splice(nextIndex, 0, movedEvent)
+    setEvents(next)
+    void doSave(next)
   }
 
   const handleSave = async () => {
-    if (!loadedWaybill) return
-    if (events.length === 0) {
-      setError('Timeline must have at least one event before saving.')
-      return
-    }
-
-    setIsSaving(true)
-    setFeedback(null)
-    setError(null)
-
-    try {
-      const startMs = Date.parse(transitStartDate)
-      const endMs = Date.parse(transitEndDate)
-      const hasValidWindow = !Number.isNaN(startMs) && !Number.isNaN(endMs) && endMs > startMs
-      const eventsToSave = hasValidWindow
-        ? redistributeToTransitWindow(events, transitStartDate, transitEndDate)
-        : events
-      if (hasValidWindow) setEvents(eventsToSave)
-
-      const updated = await updateWaybillTimeline(
-        loadedWaybill.waybillNumber,
-        toPersistedEvents(eventsToSave),
-        {
-          transitStartDate: transitStartDate || undefined,
-          transitEndDate: transitEndDate || undefined,
-        },
-      )
-      if (!updated) {
-        setError('Waybill could not be updated. Please reload and try again.')
-        return
-      }
-
-      setLoadedWaybill(updated)
-      setEvents(makeEditableEvents(updated.trackingEvents || []))
-      setFeedback(`Timeline saved for ${updated.waybillNumber}. Runtime control is now active on tracking.`)
-    } catch (saveError) {
-      console.error(saveError)
-      setError(getWaybillErrorMessage(saveError, 'timeline save'))
-    } finally {
-      setIsSaving(false)
-    }
+    await doSave(events, true)
   }
 
   return (
@@ -327,6 +344,9 @@ export function AdminTimelineControlPanel() {
       </div>
 
       {feedback && <p className="mt-3 text-sm text-emerald-200">{feedback}</p>}
+      {isSaving && !feedback && (
+        <p className="mt-3 text-sm text-[#9DC400]">Saving to tracking…</p>
+      )}
       {error && (
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <p className="text-sm text-red-200">{error}</p>
@@ -400,7 +420,7 @@ export function AdminTimelineControlPanel() {
                 <input
                   type="datetime-local"
                   value={toInputDateTime(transitStartDate)}
-                  onChange={(e) => setTransitStartDate(fromInputDateTime(e.target.value, ''))}
+                  onChange={(e) => { setTransitStartDate(fromInputDateTime(e.target.value, '')); setHasUnsavedEdits(true) }}
                   className="logistics-input-control w-full px-3 py-2 text-sm"
                 />
               </div>
@@ -409,7 +429,7 @@ export function AdminTimelineControlPanel() {
                 <input
                   type="datetime-local"
                   value={toInputDateTime(transitEndDate)}
-                  onChange={(e) => setTransitEndDate(fromInputDateTime(e.target.value, ''))}
+                  onChange={(e) => { setTransitEndDate(fromInputDateTime(e.target.value, '')); setHasUnsavedEdits(true) }}
                   className="logistics-input-control w-full px-3 py-2 text-sm"
                 />
               </div>
@@ -422,7 +442,7 @@ export function AdminTimelineControlPanel() {
             {(transitStartDate || transitEndDate) && (
               <button
                 type="button"
-                onClick={() => { setTransitStartDate(''); setTransitEndDate('') }}
+                onClick={() => { setTransitStartDate(''); setTransitEndDate(''); setHasUnsavedEdits(true) }}
                 className="mt-2 text-xs text-white/40 underline hover:text-white/70 transition"
               >
                 Clear transit period
@@ -430,11 +450,12 @@ export function AdminTimelineControlPanel() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={clearHolds}
-              className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10"
+              disabled={isSaving}
+              className="rounded-lg border border-white/20 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Release All Holds
             </button>
@@ -444,8 +465,13 @@ export function AdminTimelineControlPanel() {
               disabled={isSaving}
               className="admin-action-primary rounded-lg px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isSaving ? 'Saving...' : 'Save Timeline Changes'}
+              {isSaving ? 'Saving…' : 'Save Timeline Changes'}
             </button>
+            {hasUnsavedEdits && !isSaving && (
+              <span className="text-xs text-amber-300/80">
+                ● Field edits not yet saved — click Save Timeline Changes to apply.
+              </span>
+            )}
           </div>
 
           <div className="space-y-3">
@@ -468,7 +494,8 @@ export function AdminTimelineControlPanel() {
                         <button
                           type="button"
                           onClick={() => releaseHold(event.id)}
-                          className="rounded-md border border-amber-300/50 bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-amber-400/20"
+                          disabled={isSaving}
+                          className="rounded-md border border-amber-300/50 bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-100 hover:bg-amber-400/20 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Release Hold
                         </button>
@@ -479,7 +506,8 @@ export function AdminTimelineControlPanel() {
                             setPendingHoldId(isShowingConditionPicker ? null : event.id)
                             setPendingCondition(HOLD_CONDITIONS[0])
                           }}
-                          className="rounded-md border border-white/30 px-2 py-1 text-[11px] font-semibold hover:bg-white/10"
+                          disabled={isSaving}
+                          className="rounded-md border border-white/30 px-2 py-1 text-[11px] font-semibold hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Apply Hold / Condition
                         </button>
@@ -487,7 +515,7 @@ export function AdminTimelineControlPanel() {
                       <button
                         type="button"
                         onClick={() => moveEvent(index, -1)}
-                        disabled={index === 0}
+                        disabled={index === 0 || isSaving}
                         className="rounded-md border border-white/30 px-2 py-1 text-[11px] font-semibold hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         Move Up
@@ -495,7 +523,7 @@ export function AdminTimelineControlPanel() {
                       <button
                         type="button"
                         onClick={() => moveEvent(index, 1)}
-                        disabled={index === events.length - 1}
+                        disabled={index === events.length - 1 || isSaving}
                         className="rounded-md border border-white/30 px-2 py-1 text-[11px] font-semibold hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         Move Down
@@ -503,14 +531,15 @@ export function AdminTimelineControlPanel() {
                       <button
                         type="button"
                         onClick={() => addEventAfter(index)}
-                        className="rounded-md border border-white/30 px-2 py-1 text-[11px] font-semibold hover:bg-white/10"
+                        disabled={isSaving}
+                        className="rounded-md border border-white/30 px-2 py-1 text-[11px] font-semibold hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         Add Below
                       </button>
                       <button
                         type="button"
                         onClick={() => removeEvent(event.id)}
-                        disabled={events.length <= 1}
+                        disabled={events.length <= 1 || isSaving}
                         className="rounded-md border border-red-300/40 px-2 py-1 text-[11px] font-semibold text-red-100 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         Remove
@@ -541,7 +570,8 @@ export function AdminTimelineControlPanel() {
                         <button
                           type="button"
                           onClick={() => applyHold(event.id, pendingCondition)}
-                          className="rounded-lg border border-amber-300/60 bg-amber-400/20 px-4 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-400/30"
+                          disabled={isSaving}
+                          className="rounded-lg border border-amber-300/60 bg-amber-400/20 px-4 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-400/30 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                           Confirm Hold — {pendingCondition}
                         </button>

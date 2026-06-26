@@ -6,6 +6,7 @@ export interface TrackingEvent {
   description: string
   eventTime: string
   isHold?: boolean
+  holdCondition?: string
 }
 
 interface TrackingTimelineProps {
@@ -124,7 +125,14 @@ export const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ events, acti
 
                 <article className={`rounded-xl border px-4 py-3 ${getCardClasses(row.state)}`}>
                   <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-white">{row.status}</p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-white">{row.status}</p>
+                      {row.state === 'hold' && row.holdCondition && (
+                        <span className="rounded-full border border-amber-300/60 bg-amber-400/20 px-2.5 py-0.5 text-[11px] font-semibold text-amber-100">
+                          {row.holdCondition}
+                        </span>
+                      )}
+                    </div>
                     <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${getBadgeClasses(row.state)}`}>
                       {badgeLabel}
                     </span>

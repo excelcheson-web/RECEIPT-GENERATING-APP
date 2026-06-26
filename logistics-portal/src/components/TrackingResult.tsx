@@ -115,8 +115,15 @@ export const TrackingResult: React.FC<TrackingResultProps> = ({ waybill, layout 
             <Field label="Estimated Delivery" value={formatDateValue(projectedDeliveryDate)} />
           </div>
 
-          <div className="mt-5 rounded-xl border border-lime-300/30 bg-lime-400/10 p-4">
-            <p className="text-xs uppercase tracking-wide text-lime-200">Current Status Highlight</p>
+          <div className={`mt-5 rounded-xl border p-4 ${runtime.isOnHold ? 'border-amber-300/40 bg-amber-400/10' : 'border-lime-300/30 bg-lime-400/10'}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className={`text-xs uppercase tracking-wide ${runtime.isOnHold ? 'text-amber-200' : 'text-lime-200'}`}>Current Status Highlight</p>
+              {runtime.isOnHold && runtime.holdCondition && (
+                <span className="rounded-full border border-amber-300/60 bg-amber-400/20 px-2.5 py-0.5 text-[11px] font-semibold text-amber-100">
+                  {runtime.holdCondition}
+                </span>
+              )}
+            </div>
             <p className="mt-1 text-sm font-semibold text-white">{activeEvent?.status || currentStatus}</p>
             <p className="text-sm text-[#d7e4f6]">{activeEvent?.location || currentLocation}</p>
             <p className="mt-1 text-xs text-[#b8cae1]">
