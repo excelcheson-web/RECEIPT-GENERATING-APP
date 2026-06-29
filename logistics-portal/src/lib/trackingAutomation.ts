@@ -70,7 +70,7 @@ export function computeRuntimeTrackingState(events: TrackingEventRecord[], now: 
   let activeEventIndex = hasReachedAny ? reachedEventIndex : 0
   let isOnHold = false
 
-  if (holdEventIndex >= 0 && reachedEventIndex >= holdEventIndex) {
+  if (holdEventIndex >= 0) {
     activeEventIndex = holdEventIndex
     isOnHold = true
   }
